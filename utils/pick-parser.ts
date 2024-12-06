@@ -2,67 +2,60 @@ export type ParsedPick = {
   team: string;
   spread?: number;
   over_under?: number;
-  is_favorite?: boolean;  // only used for spread bets
-  is_over?: boolean;      // only used for over/under bets
+  is_favorite?: boolean;
+  is_over?: boolean;
   pick_type: 'spread' | 'over_under';
 };
 
 export function parsePick(input: string): ParsedPick | null {
-  // Clean up input
+  console.log('parsePick input:', input);
   const text = input.trim().toLowerCase();
+  console.log('cleaned input:', text);
   
-  // Try to match over/under pattern with required team
-  // Matches patterns like "Stanford O147.5" or "Stanford over 147.5"
   const overUnderPattern = /^(\w+)\s+(o|over|u|under)\s*(\d+\.?\d*)$/i;
   const ouMatch = text.match(overUnderPattern);
   
   if (ouMatch) {
+    console.log('over/under match:', ouMatch);
     const [_, team, direction, number] = ouMatch;
-    if (!team) {
-      return null;
-    }
-    const isOver = direction.toLowerCase().startsWith('o');
-    return {
+    const result = {
       team: team.trim(),
       over_under: parseFloat(number),
-      is_over: isOver,
-      pick_type: 'over_under'
+      is_over: direction.toLowerCase().startsWith('o'),
+      pick_type: 'over_under' as const
     };
+    console.log('returning over/under pick:', result);
+    return result;
   }
   
-  // Try to match spread patterns
   const spreadWordPattern = /^(.*?)\s+(minus|plus)\s+(\d+\.?\d*)$/i;
   const spreadSymbolPattern = /^(.*?)\s*([+-])(\d+\.?\d*)$/i;
   
   const spreadWordMatch = text.match(spreadWordPattern);
   const spreadSymbolMatch = text.match(spreadSymbolPattern);
   
-  if (spreadWordMatch) {
-    const [_, team, direction, number] = spreadWordMatch;
-    const isFavorite = direction.toLowerCase() === 'minus';
-    return {
+  if (spreadWordMatch || spreadSymbolMatch) {
+    const match = spreadWordMatch || spreadSymbolMatch;
+    console.log('spread match:', match);
+    const [_, team, direction, number] = match!;
+    const isFavorite = direction === '-' || direction.toLowerCase() === 'minus';
+    const result = {
       team: team.trim(),
       spread: parseFloat(number),
       is_favorite: isFavorite,
-      pick_type: 'spread'
+      pick_type: 'spread' as const
     };
+    console.log('returning spread pick:', result);
+    return result;
   }
   
-  if (spreadSymbolMatch) {
-    const [_, team, symbol, number] = spreadSymbolMatch;
-    const isFavorite = symbol === '-';
-    return {
-      team: team.trim(),
-      spread: parseFloat(number),
-      is_favorite: isFavorite,
-      pick_type: 'spread'
-    };
-  }
-  
+  console.log('no match found, returning null');
   return null;
 }
 
 export function validatePick(pick: ParsedPick, availablePicks: number): string | null {
+  console.log('validatePick input:', { pick, availablePicks });
+  
   if (availablePicks <= 0) {
     return 'No picks remaining';
   }
@@ -81,6 +74,7 @@ export function validatePick(pick: ParsedPick, availablePicks: number): string |
     }
   }
   
+  console.log('validation passed');
   return null;
 }
 
