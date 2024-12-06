@@ -12,6 +12,7 @@ type Pick = {
   user_id: string;
   team: string;
   spread: number;
+  over_under: number;
   is_favorite: boolean;
   status: string;
   created_at: string;
@@ -63,16 +64,29 @@ export default function ScoreEntry() {
     homeScore: number,
     awayScore: number
   ): 'win' | 'loss' | 'tie' => {
-    const actualMargin = homeScore - awayScore;
-    const isHomeTeam = pick.team.toLowerCase() === homeTeam.toLowerCase();
-    const effectiveMargin = isHomeTeam ? actualMargin : -actualMargin;
-    const spreadTocover = pick.is_favorite ? -pick.spread : pick.spread;
-    
-    if (effectiveMargin === spreadTocover) {
-      return 'tie';
+    const totalScore = homeScore + awayScore;
+
+    if (pick.over_under > 0) {
+      if (totalScore === pick.over_under) {
+        return 'tie';
+      }
+
+      if (totalScore > pick.over_under) {
+        return pick.is_favorite ? 'loss' : 'win';
+      }
+
+      return pick.is_favorite ? 'win' : 'loss';
+    } else {
+      const spreadTocover = pick.is_favorite ? -pick.spread : pick.spread;
+      const actualMargin = homeScore - awayScore;
+      const effectiveMargin = pick.team.toLowerCase() === homeTeam.toLowerCase() ? actualMargin : -actualMargin;
+
+      if (effectiveMargin === spreadTocover) {
+        return 'tie';
+      }
+
+      return effectiveMargin > spreadTocover ? 'win' : 'loss';
     }
-    
-    return effectiveMargin > spreadTocover ? 'win' : 'loss';
   };
 
   const handleSubmitScore = async () => {
@@ -232,7 +246,8 @@ export default function ScoreEntry() {
           {picks.map((pick) => (
             <div key={pick.id} className="p-3 bg-gray-50 rounded-md">
               <span className="font-medium">{pick.users?.name}</span>: {pick.team}{' '}
-              {pick.is_favorite ? 'minus' : 'plus'} {pick.spread}
+              {pick.is_favorite ? 'minus' : 'plus'} {pick.spread}{' '}
+              {pick.over_under > 0 ? `(o/u ${pick.over_under})` : ''}
             </div>
           ))}
         </div>
