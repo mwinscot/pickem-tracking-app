@@ -65,14 +65,16 @@ export default function ScoreEntry() {
     awayScore: number
   ): 'win' | 'loss' | 'tie' => {
     const totalScore = homeScore + awayScore;
-    const isOverUnder = pick.team.includes('o');
-    const spreadValue = parseFloat(pick.team.replace(/\D/g, ''));
+    const pickParts = pick.team.split(' ');
+    const isOverUnder = pickParts.length === 2 && pickParts[1].toLowerCase() === 'o';
+    const spreadValue = parseFloat(pickParts[0].replace(/\D/g, ''));
   
     if (isOverUnder) {
-      if (totalScore === spreadValue) {
+      const overUnderValue = parseFloat(pickParts[0]);
+      if (totalScore === overUnderValue) {
         return 'tie';
       }
-      return totalScore > spreadValue ? (pick.is_favorite ? 'loss' : 'win') : (pick.is_favorite ? 'win' : 'loss');
+      return totalScore > overUnderValue ? (pick.is_favorite ? 'loss' : 'win') : (pick.is_favorite ? 'win' : 'loss');
     } else {
       const spreadTocover = pick.is_favorite ? -spreadValue : spreadValue;
       const actualMargin = homeScore - awayScore;
