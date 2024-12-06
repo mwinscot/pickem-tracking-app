@@ -102,13 +102,26 @@ export default function ScoreEntry() {
         }
 
         if (result === 'win') {
-          const { error: userError } = await supabase
+          const { data, error: userError } = await supabase
             .from('users')
-            .update({ points: supabase.rpc('increment', { inc: 1 }) })
-            .eq('id', pick.user_id);
-
+            .select('points')
+            .eq('id', pick.user_id)
+            .single();
+        
           if (userError) {
-            console.error('Error updating user points:', userError);
+            console.error('Error fetching user points:', userError);
+            return;
+          }
+        
+          const newPoints = (data.points || 0) + 1;
+        
+          const { error: updateError } = await supabase
+            .from('users')
+            .update({ points: newPoints })
+            .eq('id', pick.user_id);
+        
+          if (updateError) {
+            console.error('Error updating user points:', updateError);
           }
         }
 
