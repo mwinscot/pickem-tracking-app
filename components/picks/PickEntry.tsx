@@ -88,9 +88,14 @@ export default function PickEntry() {
         .single();
 
       if (pickError) {
-        console.error('Supabase error:', pickError); // Debug log
-        throw pickError;
-      }
+          console.error('Supabase error details:', {
+            code: pickError.code,
+            message: pickError.message,
+            details: pickError.details,
+            data: pickData  // Add this to see what we're trying to save
+          });
+          throw pickError;
+        }
 
       console.log('Pick saved:', data); // Debug log
 
