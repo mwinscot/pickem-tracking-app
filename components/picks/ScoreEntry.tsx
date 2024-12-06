@@ -61,7 +61,9 @@ export default function ScoreEntry() {
     
     const updates = picks.map(pick => ({
       id: pick.id,
-      user_id: pick.user_id,  // Add this line
+      user_id: pick.user_id,
+      spread: pick.spread,
+      over_under: pick.over_under,
       home_team: homeTeam,
       away_team: awayTeam,
       home_score: Number(homeScore),
