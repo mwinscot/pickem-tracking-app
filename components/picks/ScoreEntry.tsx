@@ -54,53 +54,56 @@ export default function ScoreEntry() {
  }, [fetchPendingPicks]);
 
  const handleSubmitScore = async () => {
-   const total = Number(homeScore) + Number(awayScore);
-   
-   try {
-     const updates = picks.map(pick => {
-       let winner;
-       let result;
+  const total = Number(homeScore) + Number(awayScore);
+  
+  try {
+    const updates = picks.map(pick => {
+      let winner;
+      let result;
 
-       if (pick.over_under > 0) {
-         result = total > pick.over_under ? 'over' : 'under';
-         winner = result === (pick.is_over ? 'over' : 'under');
-       } else {
-         const spread = pick.is_favorite ? -pick.spread : pick.spread;
-         const pickTeam = pick.team.toLowerCase();
-         const actualSpread = pickTeam === homeTeam.toLowerCase() 
-           ? Number(homeScore) - Number(awayScore)
-           : Number(awayScore) - Number(homeScore);
-         winner = actualSpread > spread;
-       }
+      if (pick.over_under > 0) {
+        result = total > pick.over_under ? 'over' : 'under';
+        winner = result === (pick.is_over ? 'over' : 'under');
+      } else {
+        const spread = pick.is_favorite ? -pick.spread : pick.spread;
+        const pickTeam = pick.team.toLowerCase();
+        const actualSpread = pickTeam === homeTeam.toLowerCase() 
+          ? Number(homeScore) - Number(awayScore)
+          : Number(awayScore) - Number(homeScore);
+        winner = actualSpread > spread;
+      }
 
-       return {
-         id: pick.id,
-         status: 'completed',
-         winner,
-         home_team: homeTeam,
-         away_team: awayTeam,
-         home_score: Number(homeScore),
-         away_score: Number(awayScore)
-       };
-     });
+      return {
+        id: pick.id,
+        status: 'completed',
+        winner,
+        home_team: homeTeam,
+        away_team: awayTeam,
+        home_score: Number(homeScore),
+        away_score: Number(awayScore)
+      };
+    });
 
-     const { error } = await supabase
-       .from('picks')
-       .upsert(updates);
+    const { error } = await supabase
+      .from('picks')
+      .upsert(updates);
 
-     if (error) throw error;
+    if (error) {
+      console.error('Supabase error:', error);
+      throw error;
+    }
 
-     setMessage('Scores updated successfully!');
-     setHomeTeam('');
-     setAwayTeam('');
-     setHomeScore('');
-     setAwayScore('');
-     await fetchPendingPicks();
-   } catch (error) {
-     console.error('Error updating scores:', error);
-     setMessage('Error updating scores');
-   }
- };
+    setMessage('Scores updated successfully!');
+    setHomeTeam('');
+    setAwayTeam('');
+    setHomeScore('');
+    setAwayScore('');
+    await fetchPendingPicks();
+  } catch (error) {
+    console.error('Error updating scores:', error);
+    setMessage('Error updating scores');
+  }
+};
 
  return (
    <div className="max-w-2xl mx-auto p-4">
