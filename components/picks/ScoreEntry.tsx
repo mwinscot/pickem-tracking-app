@@ -21,37 +21,51 @@ export default function ScoreEntry() {
     const total = Number(homeScore) + Number(awayScore);
     
     try {
-      const updatesToSend = picks.map(pick => ({
-        id: pick.id,
-        user_id: pick.user_id,
-        team: pick.team,
-        spread: pick.spread,
-        over_under: pick.over_under,
-        is_favorite: pick.is_favorite,
-        is_over: pick.is_over,
-        home_team: homeTeam,
-        away_team: awayTeam,
-        home_score: Number(homeScore),
-        away_score: Number(awayScore),
-        status: 'completed',
-        winner: pick.over_under > 0 
-          ? (total > pick.over_under) === pick.is_over
+      const updatesToSend = picks.map(pick => {
+        const isWinner = pick.over_under > 0 
+          ? (() => {
+              const isOver = total > pick.over_under;
+              console.log('Over/Under calculation:', {
+                total,
+                overUnder: pick.over_under,
+                isOver,
+                pickedOver: pick.is_over,
+                winner: isOver === pick.is_over
+              });
+              return isOver === pick.is_over;
+            })()
           : ((pick.team.toLowerCase() === homeTeam.toLowerCase() 
               ? Number(homeScore) - Number(awayScore)
               : Number(awayScore) - Number(homeScore)) > 
-             (pick.is_favorite ? -pick.spread : pick.spread))
-      }));
-
+             (pick.is_favorite ? -pick.spread : pick.spread));
+   
+        return {
+          id: pick.id,
+          user_id: pick.user_id,
+          team: pick.team,
+          spread: pick.spread,
+          over_under: pick.over_under,
+          is_favorite: pick.is_favorite,
+          is_over: pick.is_over,
+          home_team: homeTeam,
+          away_team: awayTeam,
+          home_score: Number(homeScore),
+          away_score: Number(awayScore),
+          status: 'completed',
+          winner: isWinner
+        };
+      });
+   
       console.log('Updates:', updatesToSend);
       const { error } = await supabase
         .from('picks')
         .upsert(updatesToSend);
-
+   
       if (error) {
         console.error('Full error:', JSON.stringify(error, null, 2));
         throw error;
       }
-
+   
       setMessage('Scores updated successfully!');
       setHomeTeam('');
       setAwayTeam('');
@@ -62,7 +76,7 @@ export default function ScoreEntry() {
       console.error('Catch error:', JSON.stringify(err, null, 2));
       setMessage(`Error updating scores: ${err.message}`);
     }
-  };
+   };
 
   const fetchPendingPicks = useCallback(async () => {
     const { data, error } = await supabase
