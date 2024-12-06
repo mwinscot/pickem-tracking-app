@@ -39,6 +39,25 @@ export default function ScoreEntry() {
               : Number(awayScore) - Number(homeScore)) > 
              (pick.is_favorite ? -pick.spread : pick.spread));
    
+        // Update user points if pick is a winner
+        if (isWinner) {
+          const updateUserPoints = async () => {
+            const { data: userData, error: userError } = await supabase
+              .from('users')
+              .select('points')
+              .eq('id', pick.user_id)
+              .single();
+   
+            if (!userError) {
+              await supabase
+                .from('users')
+                .update({ points: (userData.points || 0) + 1 })
+                .eq('id', pick.user_id);
+            }
+          };
+          updateUserPoints();
+        }
+   
         return {
           id: pick.id,
           user_id: pick.user_id,
