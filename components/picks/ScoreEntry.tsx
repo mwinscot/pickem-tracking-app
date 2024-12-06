@@ -57,30 +57,44 @@ export default function ScoreEntry() {
   const total = Number(homeScore) + Number(awayScore);
   
   try {
-    const updates = picks.map(pick => ({
-      id: pick.id,
-      home_team: homeTeam,
-      away_team: awayTeam,
-      home_score: Number(homeScore),
-      away_score: Number(awayScore),
-      status: 'completed',
-      winner: pick.over_under > 0 
+    console.log('Processing picks:', picks);
+    
+    const updates = picks.map(pick => {
+      const winner = pick.over_under > 0 
         ? (total > pick.over_under) === pick.is_over
         : ((pick.team.toLowerCase() === homeTeam.toLowerCase() 
             ? Number(homeScore) - Number(awayScore)
             : Number(awayScore) - Number(homeScore)) > 
-           (pick.is_favorite ? -pick.spread : pick.spread))
-    }));
- 
+           (pick.is_favorite ? -pick.spread : pick.spread));
+      
+      console.log('Pick update:', {
+        id: pick.id,
+        total,
+        overUnder: pick.over_under,
+        isOver: pick.is_over,
+        winner
+      });
+
+      return {
+        id: pick.id,
+        home_team: homeTeam,
+        away_team: awayTeam,
+        home_score: Number(homeScore),
+        away_score: Number(awayScore),
+        status: 'completed',
+        winner
+      };
+    });
+
     const { error } = await supabase
       .from('picks')
       .upsert(updates);
- 
+
     if (error) {
       console.error('Supabase error:', error);
       throw error;
     }
- 
+
     setMessage('Scores updated successfully!');
     setHomeTeam('');
     setAwayTeam('');
@@ -91,7 +105,7 @@ export default function ScoreEntry() {
     console.error('Error updating scores:', error);
     setMessage('Error updating scores');
   }
- };
+};
 
  return (
    <div className="max-w-2xl mx-auto p-4">
