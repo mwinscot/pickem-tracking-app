@@ -64,6 +64,8 @@ export default function ScoreEntry() {
       user_id: pick.user_id,
       spread: pick.spread,
       over_under: pick.over_under,
+      is_favorite: pick.is_favorite,
+      is_over: pick.is_over,
       home_team: homeTeam,
       away_team: awayTeam,
       home_score: Number(homeScore),
