@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, CSSProperties } from 'react';
+import { useState, useEffect, CSSProperties, useCallback } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -63,34 +63,34 @@ export default function Leaderboard() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [mounted, setMounted] = useState(false);
   
-  useEffect(() => {
-    setMounted(true);
-    const fetchPlayers = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('users')
-          .select('*');
-        
-        if (error) throw error;
-        
-        if (data) {
-          const playerMap = new Map(data.map(p => [p.name, p]));
-          const orderedPlayers = ['Todd', 'Mike', 'Jeff']
-            .map(name => playerMap.get(name))
-            .filter((p): p is Player => p !== undefined);
-          setPlayers(orderedPlayers);
-        }
-      } catch (error) {
-        console.error('Error fetching players:', error);
+  const fetchPlayers = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*');
+      
+      if (error) throw error;
+      
+      if (data) {
+        const playerMap = new Map(data.map(p => [p.name, p]));
+        const orderedPlayers = ['Todd', 'Mike', 'Jeff']
+          .map(name => playerMap.get(name))
+          .filter((p): p is Player => p !== undefined);
+        setPlayers(orderedPlayers);
       }
-    };
-
-    fetchPlayers();
-    const intervalId = setInterval(fetchPlayers, 5000);
-    return () => {
-      clearInterval(intervalId);
-    };
+    } catch (error) {
+      console.error('Error fetching players:', error);
+    }
   }, []);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setMounted(true);
+      fetchPlayers();
+      const intervalId = setInterval(fetchPlayers, 5000);
+      return () => clearInterval(intervalId);
+    }
+  }, [fetchPlayers]);
 
   if (!mounted) {
     return null;

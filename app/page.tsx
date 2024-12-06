@@ -1,9 +1,12 @@
 'use client';
 
-import Leaderboard from '@/components/picks/Leaderboard';
-import PickEntry from '@/components/picks/PickEntry';
-import ScoreEntry from '@/components/picks/ScoreEntry';
+import dynamic from 'next/dynamic';
 import { useState } from 'react';
+
+// Dynamically import components with no SSR
+const Leaderboard = dynamic(() => import('@/components/picks/Leaderboard'), { ssr: false });
+const PickEntry = dynamic(() => import('@/components/picks/PickEntry'), { ssr: false });
+const ScoreEntry = dynamic(() => import('@/components/picks/ScoreEntry'), { ssr: false });
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'picks' | 'scores'>('picks');
