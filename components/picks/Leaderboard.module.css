@@ -1,0 +1,45 @@
+.scoreboardTable {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 80px 20px;
+  text-align: center;
+}
+
+.scoreboardTable th,
+.scoreboardTable td {
+  text-align: center;
+  width: 33.33%;
+}
+
+.playerName {
+  font-size: 48px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding: 20px 0;
+  text-align: center;
+}
+
+.score {
+  font-size: 120px;
+  font-weight: 900;
+  font-family: monospace;
+  padding: 20px 0;
+  text-align: center;
+}
+
+.leader {
+  color: #16a34a;
+}
+
+.notLeader {
+  color: #1f2937;
+}
+
+.picksLeft {
+  font-size: 18px;
+  color: #6b7280;
+  font-weight: 500;
+  padding: 10px 0;
+  text-align: center;
+}
