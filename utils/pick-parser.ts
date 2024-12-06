@@ -2,8 +2,9 @@ export type ParsedPick = {
   team: string;
   spread?: number;
   over_under?: number;
-  is_favorite: boolean;
-  is_over_under: boolean;
+  is_favorite?: boolean;  // only used for spread bets
+  is_over?: boolean;      // only used for over/under bets
+  pick_type: 'spread' | 'over_under';
 };
 
 export function parsePick(input: string): ParsedPick | null {
@@ -18,20 +19,18 @@ export function parsePick(input: string): ParsedPick | null {
   if (ouMatch) {
     const [_, team, direction, number] = ouMatch;
     if (!team) {
-      return null; // Team is required
+      return null;
     }
     const isOver = direction.toLowerCase().startsWith('o');
     return {
       team: team.trim(),
       over_under: parseFloat(number),
-      is_favorite: isOver, // Using is_favorite to indicate over (true) or under (false)
-      is_over_under: true
+      is_over: isOver,
+      pick_type: 'over_under'
     };
   }
   
-  // Try to match spread patterns:
-  // 1. Words: "Duke minus 3.5" or "Duke plus 3.5"
-  // 2. Symbols: "Duke -3.5" or "Duke +3.5"
+  // Try to match spread patterns
   const spreadWordPattern = /^(.*?)\s+(minus|plus)\s+(\d+\.?\d*)$/i;
   const spreadSymbolPattern = /^(.*?)\s*([+-])(\d+\.?\d*)$/i;
   
@@ -45,7 +44,7 @@ export function parsePick(input: string): ParsedPick | null {
       team: team.trim(),
       spread: parseFloat(number),
       is_favorite: isFavorite,
-      is_over_under: false
+      pick_type: 'spread'
     };
   }
   
@@ -56,7 +55,7 @@ export function parsePick(input: string): ParsedPick | null {
       team: team.trim(),
       spread: parseFloat(number),
       is_favorite: isFavorite,
-      is_over_under: false
+      pick_type: 'spread'
     };
   }
   
@@ -72,7 +71,7 @@ export function validatePick(pick: ParsedPick, availablePicks: number): string |
     return 'Team name is required';
   }
 
-  if (pick.is_over_under) {
+  if (pick.pick_type === 'over_under') {
     if (!pick.over_under || pick.over_under <= 0) {
       return 'Invalid over/under value';
     }
@@ -86,8 +85,8 @@ export function validatePick(pick: ParsedPick, availablePicks: number): string |
 }
 
 export function formatPick(pick: ParsedPick): string {
-  if (pick.is_over_under) {
-    const direction = pick.is_favorite ? 'OVER' : 'UNDER';
+  if (pick.pick_type === 'over_under') {
+    const direction = pick.is_over ? 'OVER' : 'UNDER';
     return `${pick.team} ${direction} ${pick.over_under}`;
   } else {
     return `${pick.team} ${pick.is_favorite ? '-' : '+'} ${pick.spread}`;
