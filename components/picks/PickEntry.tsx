@@ -67,16 +67,16 @@ export default function PickEntry() {
         user_id: selectedUser,
         team: pick.team,
         over_under: pick.over_under,
-        is_over: pick.is_over,      // Using is_over instead of is_favorite
-        spread: 0,                  // Default for over/under bets
-        is_favorite: null           // Not used for over/under
+        is_over: pick.is_over,
+        spread: 0,
+        is_favorite: false  // Set default value instead of null
       } : {
         user_id: selectedUser,
         team: pick.team,
         spread: pick.spread,
         is_favorite: pick.is_favorite,
-        over_under: 0,              // Default for spread bets
-        is_over: null               // Not used for spread bets
+        over_under: 0,
+        is_over: false  // Set default value instead of null
       };
 
       console.log('Saving pick:', pickData); // Debug log
