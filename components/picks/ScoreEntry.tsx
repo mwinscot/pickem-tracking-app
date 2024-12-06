@@ -57,9 +57,7 @@ export default function ScoreEntry() {
   const total = Number(homeScore) + Number(awayScore);
   
   try {
-    console.log('Processing picks:', picks);
-    
-    const updates = picks.map(pick => ({
+    const updatesToSend = picks.map(pick => ({
       id: pick.id,
       user_id: pick.user_id,
       spread: pick.spread,
@@ -79,12 +77,13 @@ export default function ScoreEntry() {
            (pick.is_favorite ? -pick.spread : pick.spread))
     }));
 
+    console.log('Updates:', updatesToSend);
     const { error } = await supabase
       .from('picks')
-      .upsert(updates);
+      .upsert(updatesToSend);
 
     if (error) {
-      console.error('Supabase error:', error);
+      console.error('Full error:', JSON.stringify(error, null, 2));
       throw error;
     }
 
@@ -94,9 +93,9 @@ export default function ScoreEntry() {
     setHomeScore('');
     setAwayScore('');
     await fetchPendingPicks();
-  } catch (error) {
-    console.error('Error updating scores:', error);
-    setMessage('Error updating scores');
+  } catch (err: any) {
+    console.error('Catch error:', JSON.stringify(err, null, 2));
+    setMessage(`Error updating scores: ${err.message}`);
   }
 };
 
