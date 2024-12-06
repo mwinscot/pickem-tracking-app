@@ -63,25 +63,36 @@ export default function PickEntry() {
 
     try {
       // Insert the pick with appropriate fields
-      const pickData = pick.is_over_under ? {
+      const pickData = pick.pick_type === 'over_under' ? {
         user_id: selectedUser,
         team: pick.team,
         over_under: pick.over_under,
-        is_favorite: pick.is_favorite,
-        spread: 0 // Set a default value for spread when it's an over/under bet
+        is_over: pick.is_over,      // Using is_over instead of is_favorite
+        spread: 0,                  // Default for over/under bets
+        is_favorite: null           // Not used for over/under
       } : {
         user_id: selectedUser,
         team: pick.team,
         spread: pick.spread,
         is_favorite: pick.is_favorite,
-        over_under: 0 // Set a default value for over_under when it's a spread bet
+        over_under: 0,              // Default for spread bets
+        is_over: null               // Not used for spread bets
       };
 
-      const { error: pickError } = await supabase
-        .from('picks')
-        .insert(pickData);
+      console.log('Saving pick:', pickData); // Debug log
 
-      if (pickError) throw pickError;
+      const { data, error: pickError } = await supabase
+        .from('picks')
+        .insert(pickData)
+        .select()
+        .single();
+
+      if (pickError) {
+        console.error('Supabase error:', pickError); // Debug log
+        throw pickError;
+      }
+
+      console.log('Pick saved:', data); // Debug log
 
       // Update picks remaining
       const { error: updateError } = await supabase
@@ -91,9 +102,11 @@ export default function PickEntry() {
 
       if (updateError) throw updateError;
 
-      setMessage(`Pick recorded for ${selectedUserData.name}: ${pick.team} ${pick.is_over_under ? 
-        `${pick.is_favorite ? 'OVER' : 'UNDER'} ${pick.over_under}` : 
-        `${pick.is_favorite ? '-' : '+'} ${pick.spread}`}`);
+      setMessage(`Pick recorded for ${selectedUserData.name}: ${
+        pick.pick_type === 'over_under' 
+          ? `${pick.team} ${pick.is_over ? 'OVER' : 'UNDER'} ${pick.over_under}` 
+          : `${pick.team} ${pick.is_favorite ? '-' : '+'} ${pick.spread}`
+      }`);
       setPickInput('');
       await fetchUsers();
     } catch (err) {
