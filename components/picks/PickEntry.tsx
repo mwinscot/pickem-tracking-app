@@ -1,3 +1,5 @@
+'use client';
+
 import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { parsePick } from '@/utils/pick-parser';
@@ -55,24 +57,33 @@ export default function PickEntry() {
 
     const pick = parsePick(pickInput);
     if (!pick) {
-      setError('Invalid pick format. Example: "Duke minus 3.5" or "USC plus 5.5"');
+      setError('Invalid pick format. Examples: "Duke -3.5" or "Stanford OVER 147.5"');
       return;
     }
 
     try {
-      // Insert the pick
+      // Insert the pick with appropriate fields
+      const pickData = pick.is_over_under ? {
+        user_id: selectedUser,
+        team: pick.team,
+        over_under: pick.over_under,
+        is_favorite: pick.is_favorite,
+        spread: 0 // Set a default value for spread when it's an over/under bet
+      } : {
+        user_id: selectedUser,
+        team: pick.team,
+        spread: pick.spread,
+        is_favorite: pick.is_favorite,
+        over_under: 0 // Set a default value for over_under when it's a spread bet
+      };
+
       const { error: pickError } = await supabase
         .from('picks')
-        .insert({
-          user_id: selectedUser,
-          team: pick.team,
-          spread: pick.spread,
-          is_favorite: pick.isFavorite,
-        });
+        .insert(pickData);
 
       if (pickError) throw pickError;
 
-      // Update picks remaining can remove
+      // Update picks remaining
       const { error: updateError } = await supabase
         .from('users')
         .update({ picks_remaining: selectedUserData.picks_remaining - 1 })
@@ -80,9 +91,11 @@ export default function PickEntry() {
 
       if (updateError) throw updateError;
 
-      setMessage(`Pick recorded for ${selectedUserData.name}: ${pick.team} ${pick.isFavorite ? 'minus' : 'plus'} ${pick.spread}`);
+      setMessage(`Pick recorded for ${selectedUserData.name}: ${pick.team} ${pick.is_over_under ? 
+        `${pick.is_favorite ? 'OVER' : 'UNDER'} ${pick.over_under}` : 
+        `${pick.is_favorite ? '-' : '+'} ${pick.spread}`}`);
       setPickInput('');
-      await fetchUsers(); // Refresh user data
+      await fetchUsers();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error saving pick');
     }
@@ -119,7 +132,7 @@ export default function PickEntry() {
             type="text"
             value={pickInput}
             onChange={(e) => setPickInput(e.target.value)}
-            placeholder="Example: Duke minus 3.5"
+            placeholder='Example: "Duke -3.5" or "Stanford OVER 147.5"'
             className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm"
           />
         </div>
