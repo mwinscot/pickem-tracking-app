@@ -1,23 +1,51 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
-import { useState } from 'react';
 
-// Dynamically import components with no SSR
-const Leaderboard = dynamic(() => import('@/components/picks/Leaderboard'), { ssr: false });
-const PickEntry = dynamic(() => import('@/components/picks/PickEntry'), { ssr: false });
-const ScoreEntry = dynamic(() => import('@/components/picks/ScoreEntry'), { ssr: false });
+// Dynamically import components with no SSR and loading states
+const Leaderboard = dynamic(
+  () => import('@/components/picks/Leaderboard'),
+  { 
+    ssr: false,
+    loading: () => <div>Loading scoreboard...</div>
+  }
+);
+
+const PickEntry = dynamic(
+  () => import('@/components/picks/PickEntry'),
+  { 
+    ssr: false,
+    loading: () => <div>Loading pick entry...</div>
+  }
+);
+
+const ScoreEntry = dynamic(
+  () => import('@/components/picks/ScoreEntry'),
+  { 
+    ssr: false,
+    loading: () => <div>Loading score entry...</div>
+  }
+);
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'picks' | 'scores'>('picks');
-  const [mounted, setMounted] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
 
-  useState(() => {
-    setMounted(true);
-  });
+  useEffect(() => {
+    setIsLoaded(true);
+  }, []);
 
-  if (!mounted) {
-    return null;
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen bg-gray-100 py-8">
+        <div className="w-full max-w-7xl mx-auto px-4">
+          <h1 className="text-4xl font-bold text-center text-gray-900 mb-8">
+            Loading...
+          </h1>
+        </div>
+      </div>
+    );
   }
 
   return (
