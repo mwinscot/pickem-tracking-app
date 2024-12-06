@@ -72,7 +72,7 @@ export default function PickEntry() {
 
       if (pickError) throw pickError;
 
-      // Update picks remaining
+      // Update picks remaining can remove
       const { error: updateError } = await supabase
         .from('users')
         .update({ picks_remaining: selectedUserData.picks_remaining - 1 })
