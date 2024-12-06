@@ -59,32 +59,21 @@ export default function ScoreEntry() {
   try {
     console.log('Processing picks:', picks);
     
-    const updates = picks.map(pick => {
-      const winner = pick.over_under > 0 
+    const updates = picks.map(pick => ({
+      id: pick.id,
+      user_id: pick.user_id,  // Add this line
+      home_team: homeTeam,
+      away_team: awayTeam,
+      home_score: Number(homeScore),
+      away_score: Number(awayScore),
+      status: 'completed',
+      winner: pick.over_under > 0 
         ? (total > pick.over_under) === pick.is_over
         : ((pick.team.toLowerCase() === homeTeam.toLowerCase() 
             ? Number(homeScore) - Number(awayScore)
             : Number(awayScore) - Number(homeScore)) > 
-           (pick.is_favorite ? -pick.spread : pick.spread));
-      
-      console.log('Pick update:', {
-        id: pick.id,
-        total,
-        overUnder: pick.over_under,
-        isOver: pick.is_over,
-        winner
-      });
-
-      return {
-        id: pick.id,
-        home_team: homeTeam,
-        away_team: awayTeam,
-        home_score: Number(homeScore),
-        away_score: Number(awayScore),
-        status: 'completed',
-        winner
-      };
-    });
+           (pick.is_favorite ? -pick.spread : pick.spread))
+    }));
 
     const { error } = await supabase
       .from('picks')
