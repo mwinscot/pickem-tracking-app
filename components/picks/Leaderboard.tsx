@@ -1,6 +1,11 @@
 'use client';
 
 import { useState, useEffect, CSSProperties } from 'react';
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 type Player = {
   id: string;
@@ -54,33 +59,26 @@ const picksLeftStyles: CSSProperties = {
   textAlign: 'center',
 };
 
-// Initial data structure matching the expected format
-const initialPlayers: Player[] = [
-  { id: '1', name: 'Todd', picks_remaining: 50, points: 0 },
-  { id: '2', name: 'Mike', picks_remaining: 50, points: 0 },
-  { id: '3', name: 'Jeff', picks_remaining: 50, points: 0 }
-];
-
 export default function Leaderboard() {
-  const [players, setPlayers] = useState<Player[]>(initialPlayers);
+  const [players, setPlayers] = useState<Player[]>([]);
   const [mounted, setMounted] = useState(false);
   
   useEffect(() => {
     setMounted(true);
     const fetchPlayers = async () => {
       try {
-        const response = await fetch('/api/players');
-        if (!response.ok) return;
-        const data = await response.json();
+        const { data, error } = await supabase
+          .from('users')
+          .select('*');
+        
+        if (error) throw error;
         
         if (data) {
-          const playerMap = new Map(data.map((p: Player) => [p.name, p]));
+          const playerMap = new Map(data.map(p => [p.name, p]));
           const orderedPlayers = ['Todd', 'Mike', 'Jeff']
             .map(name => playerMap.get(name))
             .filter((p): p is Player => p !== undefined);
-          if (orderedPlayers.length > 0) {
-            setPlayers(orderedPlayers);
-          }
+          setPlayers(orderedPlayers);
         }
       } catch (error) {
         console.error('Error fetching players:', error);
@@ -98,7 +96,6 @@ export default function Leaderboard() {
     return null;
   }
 
-  // Find the highest score
   const highestScore = Math.max(...players.map(p => p.points));
 
   return (
