@@ -80,9 +80,11 @@ export function validatePick(pick: ParsedPick, availablePicks: number): string |
 
 export function formatPick(pick: ParsedPick): string {
   if (pick.pick_type === 'over_under') {
-    const direction = pick.is_over ? 'OVER' : 'UNDER';
-    return `${pick.team} ${direction} ${pick.over_under}`;
+    const direction = pick.is_over ? 'O' : 'U';
+    return `${pick.team} ${direction}${pick.over_under}`;
   } else {
-    return `${pick.team} ${pick.is_favorite ? '-' : '+'} ${pick.spread}`;
+    // Handle undefined spread with nullish coalescing
+    const spread = pick.spread ?? 0;
+    return `${pick.team} ${spread > 0 ? '+' : '-'}${Math.abs(spread)}`;
   }
 }
