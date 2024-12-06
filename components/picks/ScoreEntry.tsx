@@ -65,26 +65,22 @@ export default function ScoreEntry() {
     awayScore: number
   ): 'win' | 'loss' | 'tie' => {
     const totalScore = homeScore + awayScore;
-
-    if (pick.over_under > 0) {
-      if (totalScore === pick.over_under) {
+  
+    if (pick.team.includes('o')) {
+      const overUnderValue = parseFloat(pick.team.replace(/\D/g, ''));
+      if (totalScore === overUnderValue) {
         return 'tie';
       }
-
-      if (totalScore > pick.over_under) {
-        return pick.is_favorite ? 'loss' : 'win';
-      }
-
-      return pick.is_favorite ? 'win' : 'loss';
+      return totalScore > overUnderValue ? (pick.is_favorite ? 'loss' : 'win') : (pick.is_favorite ? 'win' : 'loss');
     } else {
       const spreadTocover = pick.is_favorite ? -pick.spread : pick.spread;
       const actualMargin = homeScore - awayScore;
       const effectiveMargin = pick.team.toLowerCase() === homeTeam.toLowerCase() ? actualMargin : -actualMargin;
-
+  
       if (effectiveMargin === spreadTocover) {
         return 'tie';
       }
-
+  
       return effectiveMargin > spreadTocover ? 'win' : 'loss';
     }
   };
