@@ -12,7 +12,6 @@ type Pick = {
   user_id: string;
   team: string;
   spread: number;
-  over_under: number;
   is_favorite: boolean;
   status: string;
   created_at: string;
@@ -64,28 +63,16 @@ export default function ScoreEntry() {
     homeScore: number,
     awayScore: number
   ): 'win' | 'loss' | 'tie' => {
-    const totalScore = homeScore + awayScore;
-    const pickParts = pick.team.split(' ');
-    const isOverUnder = pickParts.length === 2 && pickParts[1].toLowerCase() === 'o';
-    const spreadValue = parseFloat(pickParts[0].replace(/\D/g, ''));
-  
-    if (isOverUnder) {
-      const overUnderValue = parseFloat(pickParts[0]);
-      if (totalScore === overUnderValue) {
-        return 'tie';
-      }
-      return totalScore > overUnderValue ? (pick.is_favorite ? 'loss' : 'win') : (pick.is_favorite ? 'win' : 'loss');
-    } else {
-      const spreadTocover = pick.is_favorite ? -spreadValue : spreadValue;
-      const actualMargin = homeScore - awayScore;
-      const effectiveMargin = pick.team.toLowerCase().includes(homeTeam.toLowerCase()) ? actualMargin : -actualMargin;
-  
-      if (effectiveMargin === spreadTocover) {
-        return 'tie';
-      }
-  
-      return effectiveMargin > spreadTocover ? 'win' : 'loss';
+    const actualMargin = homeScore - awayScore;
+    const isHomeTeam = pick.team.toLowerCase() === homeTeam.toLowerCase();
+    const effectiveMargin = isHomeTeam ? actualMargin : -actualMargin;
+    const spreadTocover = pick.is_favorite ? -pick.spread : pick.spread;
+    
+    if (effectiveMargin === spreadTocover) {
+      return 'tie';
     }
+    
+    return effectiveMargin > spreadTocover ? 'win' : 'loss';
   };
 
   const handleSubmitScore = async () => {
@@ -115,26 +102,13 @@ export default function ScoreEntry() {
         }
 
         if (result === 'win') {
-          const { data, error: userError } = await supabase
+          const { error: userError } = await supabase
             .from('users')
-            .select('points')
-            .eq('id', pick.user_id)
-            .single();
-        
-          if (userError) {
-            console.error('Error fetching user points:', userError);
-            return;
-          }
-        
-          const newPoints = (data.points || 0) + 1;
-        
-          const { error: updateError } = await supabase
-            .from('users')
-            .update({ points: newPoints })
+            .update({ points: supabase.rpc('increment', { inc: 1 }) })
             .eq('id', pick.user_id);
-        
-          if (updateError) {
-            console.error('Error updating user points:', updateError);
+
+          if (userError) {
+            console.error('Error updating user points:', userError);
           }
         }
 
@@ -245,8 +219,7 @@ export default function ScoreEntry() {
           {picks.map((pick) => (
             <div key={pick.id} className="p-3 bg-gray-50 rounded-md">
               <span className="font-medium">{pick.users?.name}</span>: {pick.team}{' '}
-              {pick.is_favorite ? 'minus' : 'plus'} {pick.spread}{' '}
-              {pick.over_under > 0 ? `(o/u ${pick.over_under})` : ''}
+              {pick.is_favorite ? 'minus' : 'plus'} {pick.spread}
             </div>
           ))}
         </div>
