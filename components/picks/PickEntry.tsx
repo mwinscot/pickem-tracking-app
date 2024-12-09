@@ -8,16 +8,41 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-type User = {
+interface User {
   id: string;
   name: string;
   picks_remaining: number;
-};
+}
+
+interface Pick {
+  user_id: string;
+  team: string;
+  spread: number;
+  over_under: number;
+  is_favorite: boolean;
+  is_over: boolean;
+  home_team: string;
+  away_team: string;
+  game_date: string;
+  status: 'pending';
+}
+
+interface ParsedPick {
+  team: string;
+  spread?: number;
+  over_under?: number;
+  is_favorite?: boolean;
+  is_over?: boolean;
+  pick_type: 'spread' | 'over_under';
+}
 
 export default function PickEntry() {
   const [users, setUsers] = useState<User[]>([]);
   const [selectedUser, setSelectedUser] = useState<string>('');
   const [pickInput, setPickInput] = useState('');
+  const [homeTeam, setHomeTeam] = useState('');
+  const [awayTeam, setAwayTeam] = useState('');
+  const [gameDate, setGameDate] = useState(new Date().toISOString().split('T')[0]);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
 
@@ -39,13 +64,55 @@ export default function PickEntry() {
     setUsers(data || []);
   };
 
+  const createPickData = (parsedPick: ParsedPick): Pick => {
+    if (parsedPick.pick_type === 'over_under') {
+      if (parsedPick.over_under === undefined || parsedPick.is_over === undefined) {
+        throw new Error('Invalid over/under pick format');
+      }
+      return {
+        user_id: selectedUser,
+        team: parsedPick.team,
+        over_under: parsedPick.over_under,
+        is_over: parsedPick.is_over,
+        spread: 0,
+        is_favorite: false,
+        home_team: homeTeam,
+        away_team: awayTeam,
+        game_date: gameDate,
+        status: 'pending'
+      };
+    } else {
+      if (parsedPick.spread === undefined || parsedPick.is_favorite === undefined) {
+        throw new Error('Invalid spread pick format');
+      }
+      return {
+        user_id: selectedUser,
+        team: parsedPick.team,
+        spread: parsedPick.spread,
+        is_favorite: parsedPick.is_favorite,
+        over_under: 0,
+        is_over: false,
+        home_team: homeTeam,
+        away_team: awayTeam,
+        game_date: gameDate,
+        status: 'pending'
+      };
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setMessage('');
 
+    // Validate required fields
     if (!selectedUser) {
       setError('Please select a user');
+      return;
+    }
+
+    if (!homeTeam || !awayTeam) {
+      setError('Please enter both home and away teams');
       return;
     }
 
@@ -55,31 +122,14 @@ export default function PickEntry() {
       return;
     }
 
-    const pick = parsePick(pickInput);
-    if (!pick) {
+    const parsedPick = parsePick(pickInput);
+    if (!parsedPick) {
       setError('Invalid pick format. Examples: "Duke -3.5" or "Stanford OVER 147.5"');
       return;
     }
 
     try {
-      // Insert the pick with appropriate fields
-      const pickData = pick.pick_type === 'over_under' ? {
-        user_id: selectedUser,
-        team: pick.team,
-        over_under: pick.over_under,
-        is_over: pick.is_over,
-        spread: 0,
-        is_favorite: false  // Set default value instead of null
-      } : {
-        user_id: selectedUser,
-        team: pick.team,
-        spread: pick.spread,
-        is_favorite: pick.is_favorite,
-        over_under: 0,
-        is_over: false  // Set default value instead of null
-      };
-
-      console.log('Saving pick:', pickData); // Debug log
+      const pickData = createPickData(parsedPick);
 
       const { data, error: pickError } = await supabase
         .from('picks')
@@ -88,16 +138,14 @@ export default function PickEntry() {
         .single();
 
       if (pickError) {
-          console.error('Supabase error details:', {
-            code: pickError.code,
-            message: pickError.message,
-            details: pickError.details,
-            data: pickData  // Add this to see what we're trying to save
-          });
-          throw pickError;
-        }
-
-      console.log('Pick saved:', data); // Debug log
+        console.error('Supabase error details:', {
+          code: pickError.code,
+          message: pickError.message,
+          details: pickError.details,
+          data: pickData
+        });
+        throw pickError;
+      }
 
       // Update picks remaining
       const { error: updateError } = await supabase
@@ -108,11 +156,15 @@ export default function PickEntry() {
       if (updateError) throw updateError;
 
       setMessage(`Pick recorded for ${selectedUserData.name}: ${
-        pick.pick_type === 'over_under' 
-          ? `${pick.team} ${pick.is_over ? 'OVER' : 'UNDER'} ${pick.over_under}` 
-          : `${pick.team} ${pick.is_favorite ? '-' : '+'} ${pick.spread}`
+        parsedPick.pick_type === 'over_under' 
+          ? `${parsedPick.team} ${parsedPick.is_over ? 'OVER' : 'UNDER'} ${parsedPick.over_under}` 
+          : `${parsedPick.team} ${parsedPick.is_favorite ? '-' : '+'} ${parsedPick.spread}`
       }`);
+      
+      // Reset form
       setPickInput('');
+      setHomeTeam('');
+      setAwayTeam('');
       await fetchUsers();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error saving pick');
@@ -139,6 +191,49 @@ export default function PickEntry() {
               </option>
             ))}
           </select>
+        </div>
+
+        <div>
+          <label htmlFor="gameDate" className="block text-sm font-medium text-gray-700">
+            Game Date
+          </label>
+          <input
+            id="gameDate"
+            type="date"
+            value={gameDate}
+            onChange={(e) => setGameDate(e.target.value)}
+            className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm"
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label htmlFor="homeTeam" className="block text-sm font-medium text-gray-700">
+              Home Team
+            </label>
+            <input
+              id="homeTeam"
+              type="text"
+              value={homeTeam}
+              onChange={(e) => setHomeTeam(e.target.value)}
+              className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm"
+              placeholder="Enter home team"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="awayTeam" className="block text-sm font-medium text-gray-700">
+              Away Team
+            </label>
+            <input
+              id="awayTeam"
+              type="text"
+              value={awayTeam}
+              onChange={(e) => setAwayTeam(e.target.value)}
+              className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm"
+              placeholder="Enter away team"
+            />
+          </div>
         </div>
 
         <div>
