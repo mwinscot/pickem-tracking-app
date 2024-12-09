@@ -16,10 +16,6 @@ interface Pick {
   over_under: number;
   is_favorite: boolean;
   is_over: boolean;
-  home_team: string;
-  away_team: string;
-  home_score?: number;
-  away_score?: number;
   status: 'pending' | 'completed';
   winner?: boolean;
   users?: {
@@ -28,25 +24,18 @@ interface Pick {
   formatted_pick?: string;
 }
 
-interface Game {
-  home_team: string;
-  away_team: string;
-  home_score: string;
-  away_score: string;
+interface PendingGame {
+  team: string;
+  team_score: string;
+  other_score: string;
   picks: Pick[];
-}
-
-interface GameMap {
-  [key: string]: Game;
 }
 
 export default function ScoreEntry() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-  const [pendingGames, setPendingGames] = useState<Map<string, Game>>(new Map());
+  const [pendingGames, setPendingGames] = useState<Map<string, PendingGame>>(new Map());
   const [message, setMessage] = useState('');
-  const [picks, setPicks] = useState<Pick[]>([]);
   
-  // Fetch pending picks and organize them by game
   const fetchPendingPicks = useCallback(async () => {
     const { data, error } = await supabase
       .from('picks')
@@ -64,20 +53,18 @@ export default function ScoreEntry() {
       return;
     }
 
-    // Group picks by game and update state
-    const gameMap = new Map<string, Game>();
-    data?.forEach((pick: Pick) => {
-      const gameKey = `${pick.home_team}-${pick.away_team}`;
-      if (!gameMap.has(gameKey)) {
-        gameMap.set(gameKey, {
-          home_team: pick.home_team,
-          away_team: pick.away_team,
-          home_score: '',
-          away_score: '',
+    // Group picks by team
+    const gameMap = new Map<string, PendingGame>();
+    data?.forEach(pick => {
+      if (!gameMap.has(pick.team)) {
+        gameMap.set(pick.team, {
+          team: pick.team,
+          team_score: '',
+          other_score: '',
           picks: []
         });
       }
-      const game = gameMap.get(gameKey);
+      const game = gameMap.get(pick.team);
       if (game) {
         game.picks.push({
           ...pick,
@@ -94,43 +81,42 @@ export default function ScoreEntry() {
     });
 
     setPendingGames(gameMap);
-    setPicks(data || []);
   }, [selectedDate]);
 
   useEffect(() => {
     fetchPendingPicks();
   }, [fetchPendingPicks]);
 
-  const handleScoreChange = (gameKey: string, team: 'home' | 'away', value: string) => {
+  const handleScoreChange = (team: string, scoreType: 'team' | 'other', value: string) => {
     setPendingGames(prevGames => {
       const newGames = new Map(prevGames);
-      const game = newGames.get(gameKey);
+      const game = newGames.get(team);
       if (game) {
-        game[`${team}_score`] = value;
-        newGames.set(gameKey, { ...game });
+        game[`${scoreType}_score`] = value;
+        newGames.set(team, { ...game });
       }
       return newGames;
     });
   };
 
-  const handleSubmitScore = async (gameKey: string) => {
-    const game = pendingGames.get(gameKey);
+  const handleSubmitScore = async (team: string) => {
+    const game = pendingGames.get(team);
     if (!game) return;
 
-    const total = Number(game.home_score) + Number(game.away_score);
+    const total = Number(game.team_score) + Number(game.other_score);
     const gamePicks = game.picks;
     
     try {
-      const updatesToSend = gamePicks.map((pick: Pick) => {
+      const updatesToSend = gamePicks.map(pick => {
         const isWinner = pick.over_under > 0 
           ? (() => {
               const isOver = total > pick.over_under;
               return isOver === pick.is_over;
             })()
-          : ((pick.team.toLowerCase() === game.home_team.toLowerCase() 
-              ? Number(game.home_score) - Number(game.away_score)
-              : Number(game.away_score) - Number(game.home_score)) > 
-             (pick.is_favorite ? -pick.spread : pick.spread));
+          : (() => {
+              const margin = Number(game.team_score) - Number(game.other_score);
+              return margin > (pick.is_favorite ? -pick.spread : pick.spread);
+            })();
    
         // Update user points if pick is a winner
         if (isWinner) {
@@ -152,20 +138,10 @@ export default function ScoreEntry() {
         }
    
         return {
-          id: pick.id,
-          user_id: pick.user_id,
-          team: pick.team,
-          spread: pick.spread,
-          over_under: pick.over_under,
-          is_favorite: pick.is_favorite,
-          is_over: pick.is_over,
-          home_team: game.home_team,
-          away_team: game.away_team,
-          home_score: Number(game.home_score),
-          away_score: Number(game.away_score),
+          ...pick,
           status: 'completed',
           winner: isWinner
-        } as Pick;
+        };
       });
    
       const { error } = await supabase
@@ -174,10 +150,10 @@ export default function ScoreEntry() {
    
       if (error) throw error;
    
-      setMessage(`Scores updated successfully for ${game.home_team} vs ${game.away_team}!`);
+      setMessage(`Scores updated successfully for ${team}!`);
       setPendingGames(prevGames => {
         const newGames = new Map(prevGames);
-        newGames.delete(gameKey);
+        newGames.delete(team);
         return newGames;
       });
       await fetchPendingPicks();
@@ -213,29 +189,29 @@ export default function ScoreEntry() {
           <div className="text-gray-500">No pending games for this date.</div>
         ) : (
           <div className="space-y-6">
-            {Array.from(pendingGames.entries()).map(([gameKey, game]) => (
-              <div key={gameKey} className="bg-white shadow rounded-lg p-4">
+            {Array.from(pendingGames.entries()).map(([team, game]) => (
+              <div key={team} className="bg-white shadow rounded-lg p-4">
                 <div className="grid grid-cols-2 gap-4 mb-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700">
-                      {game.home_team} (Home)
+                      {game.team} Score
                     </label>
                     <input
                       type="number"
-                      value={game.home_score}
-                      onChange={(e) => handleScoreChange(gameKey, 'home', e.target.value)}
+                      value={game.team_score}
+                      onChange={(e) => handleScoreChange(team, 'team', e.target.value)}
                       className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
                       placeholder="Score"
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700">
-                      {game.away_team} (Away)
+                      Other Team Score
                     </label>
                     <input
                       type="number"
-                      value={game.away_score}
-                      onChange={(e) => handleScoreChange(gameKey, 'away', e.target.value)}
+                      value={game.other_score}
+                      onChange={(e) => handleScoreChange(team, 'other', e.target.value)}
                       className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
                       placeholder="Score"
                     />
@@ -254,8 +230,8 @@ export default function ScoreEntry() {
                 </div>
 
                 <button
-                  onClick={() => handleSubmitScore(gameKey)}
-                  disabled={!game.home_score || !game.away_score}
+                  onClick={() => handleSubmitScore(team)}
+                  disabled={!game.team_score || !game.other_score}
                   className="w-full bg-green-500 text-white p-2 rounded hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
                 >
                   Update Score
