@@ -1,219 +1,255 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import { parsePick } from '@/utils/pick-parser';
+import { formatPick } from '@/utils/pick-parser';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-interface User {
-  id: string;
-  name: string;
-  picks_remaining: number;
-}
-
 interface Pick {
+  id: string;
   user_id: string;
   team: string;
   spread: number;
   over_under: number;
   is_favorite: boolean;
   is_over: boolean;
+  status: 'pending' | 'completed';
   game_date: string;
-  status: 'pending';
+  winner?: boolean;
+  users?: {
+    name: string;
+  };
+  formatted_pick?: string;
 }
 
-interface ParsedPick {
+interface TeamPicks {
   team: string;
-  spread?: number;
-  over_under?: number;
-  is_favorite?: boolean;
-  is_over?: boolean;
-  pick_type: 'spread' | 'over_under';
+  team_score: string;
+  other_score: string;
+  picks: Pick[];
 }
 
-export default function PickEntry() {
-  const [users, setUsers] = useState<User[]>([]);
-  const [selectedUser, setSelectedUser] = useState<string>('');
-  const [pickInput, setPickInput] = useState('');
-  const [gameDate, setGameDate] = useState(new Date().toISOString().split('T')[0]);
-  const [error, setError] = useState('');
+export default function ScoreEntry() {
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [pendingTeams, setPendingTeams] = useState<Map<string, TeamPicks>>(new Map());
+  const [uniqueTeams, setUniqueTeams] = useState<Set<string>>(new Set());
   const [message, setMessage] = useState('');
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  const fetchUsers = async () => {
+  const fetchPendingPicks = useCallback(async () => {
     const { data, error } = await supabase
-      .from('users')
-      .select('id, name, picks_remaining')
-      .order('name');
-    
+      .from('picks')
+      .select(`
+        *,
+        users (
+          name
+        )
+      `)
+      .eq('status', 'pending')
+      .eq('game_date', selectedDate)
+      .order('team');
+
     if (error) {
-      console.error('Error fetching users:', error);
+      console.error('Error fetching picks:', error);
       return;
     }
 
-    setUsers(data || []);
-  };
+    // Create a Map of teams and their picks
+    const teamsMap = new Map<string, TeamPicks>();
+    const teams = new Set<string>();
 
-  const createPickData = (parsedPick: ParsedPick): Pick => {
-    if (parsedPick.pick_type === 'over_under') {
-      if (parsedPick.over_under === undefined || parsedPick.is_over === undefined) {
-        throw new Error('Invalid over/under pick format');
-      }
-      return {
-        user_id: selectedUser,
-        team: parsedPick.team,
-        over_under: parsedPick.over_under,
-        is_over: parsedPick.is_over,
-        spread: 0,
-        is_favorite: false,
-        game_date: gameDate,
-        status: 'pending'
-      };
-    } else {
-      if (parsedPick.spread === undefined || parsedPick.is_favorite === undefined) {
-        throw new Error('Invalid spread pick format');
-      }
-      return {
-        user_id: selectedUser,
-        team: parsedPick.team,
-        spread: parsedPick.spread,
-        is_favorite: parsedPick.is_favorite,
-        over_under: 0,
-        is_over: false,
-        game_date: gameDate,
-        status: 'pending'
-      };
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setMessage('');
-
-    if (!selectedUser) {
-      setError('Please select a user');
-      return;
-    }
-
-    const selectedUserData = users.find(u => u.id === selectedUser);
-    if (!selectedUserData) {
-      setError('Invalid user selected');
-      return;
-    }
-
-    const parsedPick = parsePick(pickInput);
-    if (!parsedPick) {
-      setError('Invalid pick format. Examples: "Arizona +4" or "Arizona O150"');
-      return;
-    }
-
-    try {
-      const pickData = createPickData(parsedPick);
-
-      const { data, error: pickError } = await supabase
-        .from('picks')
-        .insert(pickData)
-        .select()
-        .single();
-
-      if (pickError) throw pickError;
-
-      // Update picks remaining
-      const { error: updateError } = await supabase
-        .from('users')
-        .update({ picks_remaining: selectedUserData.picks_remaining - 1 })
-        .eq('id', selectedUser);
-
-      if (updateError) throw updateError;
-
-      setMessage(`Pick recorded for ${selectedUserData.name}: ${
-        parsedPick.pick_type === 'over_under' 
-          ? `${parsedPick.team} ${parsedPick.is_over ? 'OVER' : 'UNDER'} ${parsedPick.over_under}` 
-          : `${parsedPick.team} ${parsedPick.is_favorite ? '-' : '+'} ${parsedPick.spread}`
-      }`);
+    data?.forEach(pick => {
+      teams.add(pick.team);
       
-      setPickInput('');
-      await fetchUsers();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error saving pick');
+      if (!teamsMap.has(pick.team)) {
+        teamsMap.set(pick.team, {
+          team: pick.team,
+          team_score: '',
+          other_score: '',
+          picks: []
+        });
+      }
+
+      const teamPicks = teamsMap.get(pick.team);
+      if (teamPicks) {
+        teamPicks.picks.push({
+          ...pick,
+          formatted_pick: formatPick({
+            team: pick.team,
+            spread: pick.spread,
+            over_under: pick.over_under,
+            is_favorite: pick.is_favorite,
+            is_over: pick.is_over,
+            pick_type: pick.over_under > 0 ? 'over_under' : 'spread'
+          })
+        });
+      }
+    });
+
+    setPendingTeams(teamsMap);
+    setUniqueTeams(teams);
+  }, [selectedDate]);
+
+  useEffect(() => {
+    fetchPendingPicks();
+  }, [fetchPendingPicks]);
+
+  const handleScoreChange = (team: string, scoreType: 'team' | 'other', value: string) => {
+    setPendingTeams(prevTeams => {
+      const newTeams = new Map(prevTeams);
+      const teamData = newTeams.get(team);
+      if (teamData) {
+        teamData[`${scoreType}_score`] = value;
+        newTeams.set(team, { ...teamData });
+      }
+      return newTeams;
+    });
+  };
+
+  const handleSubmitScore = async (team: string) => {
+    const teamData = pendingTeams.get(team);
+    if (!teamData) return;
+
+    const total = Number(teamData.team_score) + Number(teamData.other_score);
+    
+    try {
+      const updatesToSend = teamData.picks.map(pick => {
+        const isWinner = pick.over_under > 0 
+          ? (() => {
+              const isOver = total > pick.over_under;
+              return isOver === pick.is_over;
+            })()
+          : (() => {
+              const margin = Number(teamData.team_score) - Number(teamData.other_score);
+              return margin > (pick.is_favorite ? -pick.spread : pick.spread);
+            })();
+   
+        // Update user points if pick is a winner
+        if (isWinner) {
+          const updateUserPoints = async () => {
+            const { data: userData, error: userError } = await supabase
+              .from('users')
+              .select('points')
+              .eq('id', pick.user_id)
+              .single();
+   
+            if (!userError) {
+              await supabase
+                .from('users')
+                .update({ points: (userData.points || 0) + 1 })
+                .eq('id', pick.user_id);
+            }
+          };
+          updateUserPoints();
+        }
+   
+        return {
+          ...pick,
+          status: 'completed',
+          winner: isWinner
+        };
+      });
+   
+      const { error } = await supabase
+        .from('picks')
+        .upsert(updatesToSend);
+   
+      if (error) throw error;
+   
+      setMessage(`Scores updated successfully for ${team}!`);
+      setPendingTeams(prevTeams => {
+        const newTeams = new Map(prevTeams);
+        newTeams.delete(team);
+        return newTeams;
+      });
+      await fetchPendingPicks();
+    } catch (err: any) {
+      console.error('Error updating scores:', err);
+      setMessage(`Error updating scores: ${err.message}`);
     }
   };
 
   return (
-    <div className="max-w-2xl mx-auto p-4">
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label htmlFor="user" className="block text-sm font-medium text-gray-700">
-            Select Player
-          </label>
-          <select
-            id="user"
-            value={selectedUser}
-            onChange={(e) => setSelectedUser(e.target.value)}
-            className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm"
-          >
-            <option value="">Choose a player</option>
-            {users.map((user) => (
-              <option key={user.id} value={user.id}>
-                {user.name} ({user.picks_remaining} picks remaining)
-              </option>
+    <div className="max-w-4xl mx-auto p-4">
+      <h2 className="text-xl font-bold mb-4">Enter Game Scores</h2>
+      
+      <div className="mb-6">
+        <label className="block text-sm font-medium text-gray-700">Game Date</label>
+        <input
+          type="date"
+          value={selectedDate}
+          onChange={(e) => setSelectedDate(e.target.value)}
+          className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
+        />
+      </div>
+
+      {message && (
+        <div className="mt-4 p-4 bg-green-50 text-green-700 rounded-md">
+          {message}
+        </div>
+      )}
+
+      <div className="mt-8">
+        <h3 className="text-lg font-semibold mb-4">Pending Teams for {selectedDate}</h3>
+        {uniqueTeams.size === 0 ? (
+          <div className="text-gray-500">No pending games for this date.</div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {Array.from(pendingTeams.entries()).map(([team, teamData]) => (
+              <div key={team} className="bg-white shadow rounded-lg p-4">
+                <h4 className="font-bold text-lg text-gray-900 mb-4">{team}</h4>
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      {team} Score
+                    </label>
+                    <input
+                      type="number"
+                      value={teamData.team_score}
+                      onChange={(e) => handleScoreChange(team, 'team', e.target.value)}
+                      className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
+                      placeholder="Score"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Other Team Score
+                    </label>
+                    <input
+                      type="number"
+                      value={teamData.other_score}
+                      onChange={(e) => handleScoreChange(team, 'other', e.target.value)}
+                      className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
+                      placeholder="Score"
+                    />
+                  </div>
+                </div>
+
+                <div className="mb-4">
+                  <h5 className="font-medium text-gray-700 mb-2">Picks:</h5>
+                  <div className="space-y-2">
+                    {teamData.picks.map((pick) => (
+                      <div key={pick.id} className="text-sm text-gray-600">
+                        {pick.users?.name}: {pick.formatted_pick}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => handleSubmitScore(team)}
+                  disabled={!teamData.team_score || !teamData.other_score}
+                  className="w-full bg-green-500 text-white p-2 rounded hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                >
+                  Update Score
+                </button>
+              </div>
             ))}
-          </select>
-        </div>
-
-        <div>
-          <label htmlFor="gameDate" className="block text-sm font-medium text-gray-700">
-            Game Date
-          </label>
-          <input
-            id="gameDate"
-            type="date"
-            value={gameDate}
-            onChange={(e) => setGameDate(e.target.value)}
-            className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm"
-          />
-        </div>
-
-        <div>
-          <label htmlFor="pick" className="block text-sm font-medium text-gray-700">
-            Enter Pick
-          </label>
-          <input
-            id="pick"
-            type="text"
-            value={pickInput}
-            onChange={(e) => setPickInput(e.target.value)}
-            placeholder='Example: "Arizona +4" or "Arizona O150"'
-            className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm"
-          />
-        </div>
-
-        {error && (
-          <div className="rounded-md bg-red-50 p-4">
-            <div className="text-sm text-red-700">{error}</div>
           </div>
         )}
-
-        {message && (
-          <div className="rounded-md bg-green-50 p-4">
-            <div className="text-sm text-green-700">{message}</div>
-          </div>
-        )}
-
-        <button
-          type="submit"
-          className="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600"
-        >
-          Submit Pick
-        </button>
-      </form>
+      </div>
     </div>
   );
 }

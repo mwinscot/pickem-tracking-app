@@ -18,6 +18,7 @@ interface Pick {
   is_over: boolean;
   status: 'pending' | 'completed';
   game_date: string;
+  bet_type: 'spread' | 'over_under';
   winner?: boolean;
   users?: {
     name: string;
@@ -25,16 +26,17 @@ interface Pick {
   formatted_pick?: string;
 }
 
-interface TeamPicks {
+interface TeamGame {
   team: string;
   team_score: string;
   other_score: string;
-  picks: Pick[];
+  spread_picks: Pick[];
+  over_under_picks: Pick[];
 }
 
 export default function ScoreEntry() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-  const [pendingTeams, setPendingTeams] = useState<Map<string, TeamPicks>>(new Map());
+  const [pendingGames, setPendingGames] = useState<Map<string, TeamGame>>(new Map());
   const [uniqueTeams, setUniqueTeams] = useState<Set<string>>(new Set());
   const [message, setMessage] = useState('');
 
@@ -56,25 +58,26 @@ export default function ScoreEntry() {
       return;
     }
 
-    // Create a Map of teams and their picks
-    const teamsMap = new Map<string, TeamPicks>();
+    // Create a Map of teams and their picks, separating spread and over/under picks
+    const gamesMap = new Map<string, TeamGame>();
     const teams = new Set<string>();
 
     data?.forEach(pick => {
       teams.add(pick.team);
       
-      if (!teamsMap.has(pick.team)) {
-        teamsMap.set(pick.team, {
+      if (!gamesMap.has(pick.team)) {
+        gamesMap.set(pick.team, {
           team: pick.team,
           team_score: '',
           other_score: '',
-          picks: []
+          spread_picks: [],
+          over_under_picks: []
         });
       }
 
-      const teamPicks = teamsMap.get(pick.team);
-      if (teamPicks) {
-        teamPicks.picks.push({
+      const game = gamesMap.get(pick.team);
+      if (game) {
+        const formattedPick = {
           ...pick,
           formatted_pick: formatPick({
             team: pick.team,
@@ -82,13 +85,19 @@ export default function ScoreEntry() {
             over_under: pick.over_under,
             is_favorite: pick.is_favorite,
             is_over: pick.is_over,
-            pick_type: pick.over_under > 0 ? 'over_under' : 'spread'
+            pick_type: pick.bet_type
           })
-        });
+        };
+
+        if (pick.bet_type === 'spread') {
+          game.spread_picks.push(formattedPick);
+        } else {
+          game.over_under_picks.push(formattedPick);
+        }
       }
     });
 
-    setPendingTeams(teamsMap);
+    setPendingGames(gamesMap);
     setUniqueTeams(teams);
   }, [selectedDate]);
 
@@ -97,32 +106,33 @@ export default function ScoreEntry() {
   }, [fetchPendingPicks]);
 
   const handleScoreChange = (team: string, scoreType: 'team' | 'other', value: string) => {
-    setPendingTeams(prevTeams => {
-      const newTeams = new Map(prevTeams);
-      const teamData = newTeams.get(team);
-      if (teamData) {
-        teamData[`${scoreType}_score`] = value;
-        newTeams.set(team, { ...teamData });
+    setPendingGames(prevGames => {
+      const newGames = new Map(prevGames);
+      const game = newGames.get(team);
+      if (game) {
+        game[`${scoreType}_score`] = value;
+        newGames.set(team, { ...game });
       }
-      return newTeams;
+      return newGames;
     });
   };
 
   const handleSubmitScore = async (team: string) => {
-    const teamData = pendingTeams.get(team);
-    if (!teamData) return;
+    const game = pendingGames.get(team);
+    if (!game) return;
 
-    const total = Number(teamData.team_score) + Number(teamData.other_score);
+    const total = Number(game.team_score) + Number(game.other_score);
+    const allPicks = [...game.spread_picks, ...game.over_under_picks];
     
     try {
-      const updatesToSend = teamData.picks.map(pick => {
-        const isWinner = pick.over_under > 0 
+      const updatesToSend = allPicks.map(pick => {
+        const isWinner = pick.bet_type === 'over_under'
           ? (() => {
               const isOver = total > pick.over_under;
               return isOver === pick.is_over;
             })()
           : (() => {
-              const margin = Number(teamData.team_score) - Number(teamData.other_score);
+              const margin = Number(game.team_score) - Number(game.other_score);
               return margin > (pick.is_favorite ? -pick.spread : pick.spread);
             })();
    
@@ -159,10 +169,10 @@ export default function ScoreEntry() {
       if (error) throw error;
    
       setMessage(`Scores updated successfully for ${team}!`);
-      setPendingTeams(prevTeams => {
-        const newTeams = new Map(prevTeams);
-        newTeams.delete(team);
-        return newTeams;
+      setPendingGames(prevGames => {
+        const newGames = new Map(prevGames);
+        newGames.delete(team);
+        return newGames;
       });
       await fetchPendingPicks();
     } catch (err: any) {
@@ -192,12 +202,12 @@ export default function ScoreEntry() {
       )}
 
       <div className="mt-8">
-        <h3 className="text-lg font-semibold mb-4">Pending Teams for {selectedDate}</h3>
+        <h3 className="text-lg font-semibold mb-4">Pending Games for {selectedDate}</h3>
         {uniqueTeams.size === 0 ? (
           <div className="text-gray-500">No pending games for this date.</div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {Array.from(pendingTeams.entries()).map(([team, teamData]) => (
+            {Array.from(pendingGames.entries()).map(([team, game]) => (
               <div key={team} className="bg-white shadow rounded-lg p-4">
                 <h4 className="font-bold text-lg text-gray-900 mb-4">{team}</h4>
                 <div className="grid grid-cols-2 gap-4 mb-4">
@@ -207,7 +217,7 @@ export default function ScoreEntry() {
                     </label>
                     <input
                       type="number"
-                      value={teamData.team_score}
+                      value={game.team_score}
                       onChange={(e) => handleScoreChange(team, 'team', e.target.value)}
                       className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
                       placeholder="Score"
@@ -219,7 +229,7 @@ export default function ScoreEntry() {
                     </label>
                     <input
                       type="number"
-                      value={teamData.other_score}
+                      value={game.other_score}
                       onChange={(e) => handleScoreChange(team, 'other', e.target.value)}
                       className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
                       placeholder="Score"
@@ -227,20 +237,35 @@ export default function ScoreEntry() {
                   </div>
                 </div>
 
-                <div className="mb-4">
-                  <h5 className="font-medium text-gray-700 mb-2">Picks:</h5>
-                  <div className="space-y-2">
-                    {teamData.picks.map((pick) => (
-                      <div key={pick.id} className="text-sm text-gray-600">
-                        {pick.users?.name}: {pick.formatted_pick}
-                      </div>
-                    ))}
+                {game.spread_picks.length > 0 && (
+                  <div className="mb-4">
+                    <h5 className="font-medium text-gray-700 mb-2">Spread Picks:</h5>
+                    <div className="space-y-1">
+                      {game.spread_picks.map((pick) => (
+                        <div key={pick.id} className="text-sm text-gray-600">
+                          {pick.users?.name}: {pick.formatted_pick}
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
+
+                {game.over_under_picks.length > 0 && (
+                  <div className="mb-4">
+                    <h5 className="font-medium text-gray-700 mb-2">Over/Under Picks:</h5>
+                    <div className="space-y-1">
+                      {game.over_under_picks.map((pick) => (
+                        <div key={pick.id} className="text-sm text-gray-600">
+                          {pick.users?.name}: {pick.formatted_pick}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 <button
                   onClick={() => handleSubmitScore(team)}
-                  disabled={!teamData.team_score || !teamData.other_score}
+                  disabled={!game.team_score || !game.other_score}
                   className="w-full bg-green-500 text-white p-2 rounded hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
                 >
                   Update Score
