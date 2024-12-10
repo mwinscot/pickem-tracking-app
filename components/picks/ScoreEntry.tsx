@@ -92,6 +92,14 @@ export default function ScoreEntry() {
 
     console.log('Processing picks:', data);
 
+    const determineBetType = (pick: Pick) => {
+      // If is_over is not null and over_under is greater than 0, it's an over/under bet
+      if (pick.is_over !== null && pick.over_under > 0) {
+        return 'over_under';
+      }
+      return 'spread';
+    };
+
     data?.forEach(pick => {
       console.log('Processing pick:', pick);
       teams.add(pick.team);
@@ -109,21 +117,23 @@ export default function ScoreEntry() {
 
       const game = gamesMap.get(pick.team);
       if (game) {
+        const betType = determineBetType(pick);
         const formattedPick = {
           ...pick,
+          bet_type: betType,
           formatted_pick: formatPick({
             team: pick.team,
-            spread: pick.spread,
-            over_under: pick.over_under,
-            is_favorite: pick.is_favorite,
-            is_over: pick.is_over,
-            pick_type: pick.bet_type
+            spread: betType === 'spread' ? pick.spread : 0,
+            over_under: betType === 'over_under' ? pick.over_under : 0,
+            is_favorite: betType === 'spread' ? pick.is_favorite : false,
+            is_over: betType === 'over_under' ? pick.is_over : false,
+            pick_type: betType
           })
         };
 
         console.log('Formatted pick:', formattedPick);
 
-        if (pick.bet_type === 'spread') {
+        if (betType === 'spread') {
           game.spread_picks.push(formattedPick);
         } else {
           game.over_under_picks.push(formattedPick);
