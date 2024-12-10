@@ -32,6 +32,7 @@ interface TeamGame {
   other_score: string;
   spread_picks: Pick[];
   over_under_picks: Pick[];
+  game_date: string;
 }
 
 export default function ScoreEntry() {
@@ -43,6 +44,21 @@ export default function ScoreEntry() {
   const fetchPendingPicks = useCallback(async () => {
     console.log('Fetching pending picks for date:', selectedDate);
     
+    // Get yesterday, today, and tomorrow for the selected date
+    const baseDate = new Date(selectedDate);
+    const yesterday = new Date(baseDate);
+    yesterday.setDate(baseDate.getDate() - 1);
+    const tomorrow = new Date(baseDate);
+    tomorrow.setDate(baseDate.getDate() + 1);
+
+    const dateRange = [
+      yesterday.toISOString().split('T')[0],
+      selectedDate,
+      tomorrow.toISOString().split('T')[0]
+    ];
+
+    console.log('Fetching picks for date range:', dateRange);
+
     const { data, error } = await supabase
       .from('picks')
       .select(`
@@ -52,7 +68,9 @@ export default function ScoreEntry() {
         )
       `)
       .eq('status', 'pending')
-      .eq('game_date', selectedDate);
+      .in('game_date', dateRange)
+      .order('game_date', { ascending: true })
+      .order('team');
 
     console.log('Query response:', { data, error });
 
@@ -84,7 +102,8 @@ export default function ScoreEntry() {
           team_score: '',
           other_score: '',
           spread_picks: [],
-          over_under_picks: []
+          over_under_picks: [],
+          game_date: pick.game_date
         });
       }
 
@@ -220,14 +239,23 @@ export default function ScoreEntry() {
       )}
 
       <div className="mt-8">
-        <h3 className="text-lg font-semibold mb-4">Pending Games for {selectedDate}</h3>
+        <h3 className="text-lg font-semibold mb-4">
+          Pending Games for {new Date(selectedDate).toLocaleDateString()} 
+          <span className="text-sm font-normal text-gray-600 ml-2">
+            (includes games from {new Date(selectedDate).toLocaleDateString()} ± 1 day)
+          </span>
+        </h3>
         {uniqueTeams.size === 0 ? (
-          <div className="text-gray-500">No pending games for this date.</div>
+          <div className="text-gray-500">No pending games for this date range.</div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {Array.from(pendingGames.entries()).map(([team, game]) => (
               <div key={team} className="bg-white shadow rounded-lg p-4">
-                <h4 className="font-bold text-lg text-gray-900 mb-4">{team}</h4>
+                <h4 className="font-bold text-lg text-gray-900 mb-2">{team}</h4>
+                <div className="text-sm text-gray-600 mb-4">
+                  Game Date: {new Date(game.game_date).toLocaleDateString()}
+                </div>
+                
                 <div className="grid grid-cols-2 gap-4 mb-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700">
