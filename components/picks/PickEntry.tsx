@@ -15,7 +15,7 @@ interface User {
 }
 
 interface Pick {
-  id?: string;  // Added id field
+  id?: string;
   user_id: string;
   team: string;
   spread: number;
@@ -68,6 +68,21 @@ export default function PickEntry() {
   };
 
   const fetchPendingPicks = async () => {
+    // Get yesterday, today, and tomorrow for the selected date
+    const baseDate = new Date(gameDate);
+    const yesterday = new Date(baseDate);
+    yesterday.setDate(baseDate.getDate() - 1);
+    const tomorrow = new Date(baseDate);
+    tomorrow.setDate(baseDate.getDate() + 1);
+
+    const dateRange = [
+      yesterday.toISOString().split('T')[0],
+      gameDate,
+      tomorrow.toISOString().split('T')[0]
+    ];
+
+    console.log('Fetching picks for date range:', dateRange);
+
     const { data, error } = await supabase
       .from('picks')
       .select(`
@@ -77,7 +92,8 @@ export default function PickEntry() {
         )
       `)
       .eq('status', 'pending')
-      .eq('game_date', gameDate)
+      .in('game_date', dateRange)
+      .order('game_date', { ascending: true })
       .order('team');
 
     if (error) {
@@ -191,7 +207,7 @@ export default function PickEntry() {
 
   return (
     <div className="max-w-2xl mx-auto p-4">
-      <h2 className="text-xl font-bold mb-4">Enter New Pick</h2>
+      <h2 className="text-xl font-bold mb-4">Enter Pick</h2>
       
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
@@ -261,14 +277,26 @@ export default function PickEntry() {
       </form>
 
       <div className="mt-8">
-        <h3 className="text-lg font-semibold mb-4">Pending Picks for {new Date(gameDate).toLocaleDateString()}</h3>
+        <h3 className="text-lg font-semibold mb-4">
+          Pending Picks for {new Date(gameDate).toLocaleDateString()}
+          <span className="text-sm font-normal text-gray-600 ml-2">
+            (includes picks from {new Date(gameDate).toLocaleDateString()} ± 1 day)
+          </span>
+        </h3>
         {pendingPicks.length === 0 ? (
-          <div className="text-gray-500">No pending picks for this date.</div>
+          <div className="text-gray-500">No pending picks for this date range.</div>
         ) : (
           <div className="space-y-2">
             {pendingPicks.map((pick) => (
               <div key={pick.id} className="p-3 bg-gray-50 rounded-md">
-                <span className="font-medium">{pick.users?.name}</span>: {pick.formatted_pick}
+                <div className="flex justify-between items-center">
+                  <div>
+                    <span className="font-medium">{pick.users?.name}</span>: {pick.formatted_pick}
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    {new Date(pick.game_date).toLocaleDateString()}
+                  </div>
+                </div>
               </div>
             ))}
           </div>
