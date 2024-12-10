@@ -202,11 +202,21 @@ export default function ScoreEntry() {
           updateUserPoints();
         }
    
-        return {
-          ...pick,
-          status: 'completed',
-          winner: isWinner
+        // Only include database fields, remove display-only fields
+        const dbUpdate = {
+          id: pick.id,
+          user_id: pick.user_id,
+          team: pick.team,
+          spread: pick.spread,
+          over_under: pick.over_under,
+          is_favorite: pick.is_favorite,
+          is_over: pick.is_over,
+          status: 'completed' as const,
+          winner: isWinner,
+          game_date: pick.game_date
         };
+   
+        return dbUpdate;
       });
    
       const { error } = await supabase
