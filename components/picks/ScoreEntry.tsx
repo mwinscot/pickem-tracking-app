@@ -41,6 +41,8 @@ export default function ScoreEntry() {
   const [message, setMessage] = useState('');
 
   const fetchPendingPicks = useCallback(async () => {
+    console.log('Fetching pending picks for date:', selectedDate);
+    
     const { data, error } = await supabase
       .from('picks')
       .select(`
@@ -50,11 +52,19 @@ export default function ScoreEntry() {
         )
       `)
       .eq('status', 'pending')
-      .eq('game_date', selectedDate)
-      .order('team');
+      .eq('game_date', selectedDate);
+
+    console.log('Query response:', { data, error });
 
     if (error) {
       console.error('Error fetching picks:', error);
+      return;
+    }
+
+    if (!data || data.length === 0) {
+      console.log('No pending picks found');
+      setPendingGames(new Map());
+      setUniqueTeams(new Set());
       return;
     }
 
@@ -62,7 +72,10 @@ export default function ScoreEntry() {
     const gamesMap = new Map<string, TeamGame>();
     const teams = new Set<string>();
 
+    console.log('Processing picks:', data);
+
     data?.forEach(pick => {
+      console.log('Processing pick:', pick);
       teams.add(pick.team);
       
       if (!gamesMap.has(pick.team)) {
@@ -89,6 +102,8 @@ export default function ScoreEntry() {
           })
         };
 
+        console.log('Formatted pick:', formattedPick);
+
         if (pick.bet_type === 'spread') {
           game.spread_picks.push(formattedPick);
         } else {
@@ -96,6 +111,9 @@ export default function ScoreEntry() {
         }
       }
     });
+
+    console.log('Final games map:', gamesMap);
+    console.log('Unique teams:', teams);
 
     setPendingGames(gamesMap);
     setUniqueTeams(teams);
