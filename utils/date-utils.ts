@@ -13,6 +13,17 @@ export const toPSTDate = (dateString: string): string => {
   return pstDate.toISOString().split('T')[0];
 };
 
+export const formatPSTDisplay = (dateString: string): string => {
+  const options: Intl.DateTimeFormatOptions = {
+    timeZone: 'America/Los_Angeles',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  };
+  
+  return new Date(dateString).toLocaleString('en-US', options);
+};
+
 export const getDateRange = (baseDate: string): string[] => {
   // Parse the base date
   const date = new Date(baseDate);

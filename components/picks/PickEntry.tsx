@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { parsePick, formatPick } from '@/utils/pick-parser';
-import { toPSTDate, getDateRange } from '@/utils/date-utils';  // Import the utilities
+import { toPSTDate, getDateRange, formatPSTDisplay } from '@/utils/date-utils';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -279,27 +279,27 @@ export default function PickEntry() {
 
       <div className="mt-8">
       <h3 className="text-lg font-semibold mb-4">
-      Pending Picks for {new Date(gameDate).toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }).split(',')[0]}
-      <span className="text-sm font-normal text-gray-600 ml-2">
-    (includes picks from {new Date(gameDate).toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }).split(',')[0]} ± 1 day)
-    </span>
+  Pending Picks for {formatPSTDisplay(gameDate)}
+  <span className="text-sm font-normal text-gray-600 ml-2">
+    (includes picks from {formatPSTDisplay(gameDate)} ± 1 day)
+  </span>
 </h3>
         {pendingPicks.length === 0 ? (
           <div className="text-gray-500">No pending picks for this date range.</div>
         ) : (
           <div className="space-y-2">
             {pendingPicks.map((pick) => (
-              <div key={pick.id} className="p-3 bg-gray-50 rounded-md">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <span className="font-medium">{pick.users?.name}</span>: {pick.formatted_pick}
-                  </div>
-                  <div className="text-sm text-gray-500">
-  {new Date(pick.game_date).toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }).split(',')[0]}
-</div>
-                </div>
-              </div>
-            ))}
+  <div key={pick.id} className="p-3 bg-gray-50 rounded-md">
+    <div className="flex justify-between items-center">
+      <div>
+        <span className="font-medium">{pick.users?.name}</span>: {pick.formatted_pick}
+      </div>
+      <div className="text-sm text-gray-500">
+        {formatPSTDisplay(pick.game_date)}
+      </div>
+    </div>
+  </div>
+))}
           </div>
         )}
       </div>
