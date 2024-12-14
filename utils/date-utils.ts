@@ -1,42 +1,32 @@
 // utils/date-utils.ts
 
-export const toPSTDate = (date: string): string => {
-  // Create a date object and get the PST date
-  const d = new Date(date);
+export const toPSTDate = (dateString: string): string => {
+  // Create a date object
+  const date = new Date(dateString);
   
-  // Get date parts in PST
-  const pstDate = d.toLocaleString("en-US", {
-    timeZone: "America/Los_Angeles",
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false
-  });
-
-  // Parse the PST date string
-  const [datePart] = pstDate.split(',');
-  const [month, day, year] = datePart.split('/');
+  // Get the date in PST/PDT
+  const pstDate = new Date(date.toLocaleString('en-US', {
+    timeZone: 'America/Los_Angeles'
+  }));
   
-  // Return in YYYY-MM-DD format
-  return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  // Format as YYYY-MM-DD
+  return pstDate.toISOString().split('T')[0];
 };
 
 export const getDateRange = (baseDate: string): string[] => {
   // Parse the base date
-  const [year, month, day] = baseDate.split('-').map(Number);
+  const date = new Date(baseDate);
   
-  // Create Date objects for yesterday, today, and tomorrow in PST
-  const today = new Date(year, month - 1, day);
-  const yesterday = new Date(year, month - 1, day - 1);
-  const tomorrow = new Date(year, month - 1, day + 1);
+  // Create dates for yesterday and tomorrow
+  const yesterday = new Date(date);
+  yesterday.setDate(date.getDate() - 1);
   
-  // Format all dates consistently
+  const tomorrow = new Date(date);
+  tomorrow.setDate(date.getDate() + 1);
+  
   return [
-    toPSTDate(yesterday.toISOString()),
-    toPSTDate(today.toISOString()),
-    toPSTDate(tomorrow.toISOString())
+    yesterday.toISOString().split('T')[0],
+    date.toISOString().split('T')[0],
+    tomorrow.toISOString().split('T')[0]
   ];
 };

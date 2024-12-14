@@ -45,7 +45,7 @@ export default function PickEntry() {
   const [users, setUsers] = useState<User[]>([]);
   const [selectedUser, setSelectedUser] = useState<string>('');
   const [pickInput, setPickInput] = useState('');
-  const [gameDate, setGameDate] = useState(toPSTDate(new Date().toISOString().split('T')[0]));  // Initialize with PST date
+  const [gameDate, setGameDate] = useState(toPSTDate(new Date().toISOString()));
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [pendingPicks, setPendingPicks] = useState<Pick[]>([]);
