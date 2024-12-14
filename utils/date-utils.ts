@@ -1,35 +1,42 @@
 // utils/date-utils.ts
 
 export const toPSTDate = (date: string): string => {
-  // Use PST timezone (UTC-8)
+  // Create a date object and get the PST date
   const d = new Date(date);
-  // Convert to PST
-  const pstString = d.toLocaleString("en-US", {
+  
+  // Get date parts in PST
+  const pstDate = d.toLocaleString("en-US", {
     timeZone: "America/Los_Angeles",
     year: 'numeric',
     month: '2-digit',
-    day: '2-digit'
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
   });
-  // Convert MM/DD/YYYY to YYYY-MM-DD
-  const [month, day, year] = pstString.split('/');
+
+  // Parse the PST date string
+  const [datePart] = pstDate.split(',');
+  const [month, day, year] = datePart.split('/');
+  
+  // Return in YYYY-MM-DD format
   return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
 };
 
 export const getDateRange = (baseDate: string): string[] => {
-  const d = new Date(baseDate);
+  // Parse the base date
+  const [year, month, day] = baseDate.split('-').map(Number);
   
-  // Get yesterday
-  const yesterday = new Date(d);
-  yesterday.setDate(d.getDate() - 1);
+  // Create Date objects for yesterday, today, and tomorrow in PST
+  const today = new Date(year, month - 1, day);
+  const yesterday = new Date(year, month - 1, day - 1);
+  const tomorrow = new Date(year, month - 1, day + 1);
   
-  // Get tomorrow
-  const tomorrow = new Date(d);
-  tomorrow.setDate(d.getDate() + 1);
-  
-  // Convert all dates to PST
+  // Format all dates consistently
   return [
     toPSTDate(yesterday.toISOString()),
-    toPSTDate(d.toISOString()),
+    toPSTDate(today.toISOString()),
     toPSTDate(tomorrow.toISOString())
   ];
 };

@@ -70,42 +70,51 @@ export default function PickEntry() {
   };
 
   const fetchPendingPicks = async () => {
-    const dateRange = getDateRange(gameDate);
-    console.log('Fetching picks for date range:', dateRange);
+    try {
+      const dateRange = getDateRange(gameDate);
+      console.log('Date debugging:', {
+        inputGameDate: gameDate,
+        dateRange,
+        currentPST: toPSTDate(new Date().toISOString())
+      });
   
-    const { data, error } = await supabase
-      .from('picks')
-      .select(`
-        *,
-        users (
-          name
-        )
-      `)
-      .eq('status', 'pending')
-      .in('game_date', dateRange)
-      .order('game_date', { ascending: true })
-      .order('team');
-
-    if (error) {
-      console.error('Error fetching pending picks:', error);
-      return;
+      const { data, error } = await supabase
+        .from('picks')
+        .select(`
+          *,
+          users (
+            name
+          )
+        `)
+        .eq('status', 'pending')
+        .in('game_date', dateRange)
+        .order('game_date', { ascending: true })
+        .order('team');
+  
+      if (error) {
+        console.error('Error fetching pending picks:', error);
+        return;
+      }
+  
+      console.log('Fetched picks:', data);
+  
+      const formattedPicks = data?.map(pick => ({
+        ...pick,
+        formatted_pick: formatPick({
+          team: pick.team,
+          spread: pick.spread,
+          over_under: pick.over_under,
+          is_favorite: pick.is_favorite,
+          is_over: pick.is_over,
+          pick_type: pick.over_under > 0 ? 'over_under' : 'spread'
+        })
+      }));
+  
+      setPendingPicks(formattedPicks || []);
+    } catch (err) {
+      console.error('Error in fetchPendingPicks:', err);
     }
-
-    const formattedPicks = data?.map(pick => ({
-      ...pick,
-      formatted_pick: formatPick({
-        team: pick.team,
-        spread: pick.spread,
-        over_under: pick.over_under,
-        is_favorite: pick.is_favorite,
-        is_over: pick.is_over,
-        pick_type: pick.over_under > 0 ? 'over_under' : 'spread'
-      })
-    }));
-
-    setPendingPicks(formattedPicks || []);
   };
-
   const createPickData = (parsedPick: ParsedPick): Pick => {
     const pstGameDate = toPSTDate(gameDate);
     
