@@ -39,6 +39,26 @@ interface ParsedPick {
   pick_type: 'spread' | 'over_under';
 }
 
+// Add these utility functions at the top of your file
+const toPSTDate = (date: string): string => {
+  // Convert the input date to PST (UTC-8)
+  const pstDate = new Date(date + 'T00:00:00-08:00');
+  return pstDate.toISOString().split('T')[0];
+};
+
+const getDateRange = (baseDate: string): string[] => {
+  const pstDate = new Date(baseDate + 'T00:00:00-08:00');
+  const yesterday = new Date(pstDate);
+  yesterday.setDate(pstDate.getDate() - 1);
+  const tomorrow = new Date(pstDate);
+  tomorrow.setDate(pstDate.getDate() + 1);
+
+  return [
+    yesterday.toISOString().split('T')[0],
+    pstDate.toISOString().split('T')[0],
+    tomorrow.toISOString().split('T')[0]
+  ];
+};
 export default function PickEntry() {
   const [users, setUsers] = useState<User[]>([]);
   const [selectedUser, setSelectedUser] = useState<string>('');
@@ -68,21 +88,9 @@ export default function PickEntry() {
   };
 
   const fetchPendingPicks = async () => {
-    // Get yesterday, today, and tomorrow for the selected date
-    const baseDate = new Date(gameDate);
-    const yesterday = new Date(baseDate);
-    yesterday.setDate(baseDate.getDate() - 1);
-    const tomorrow = new Date(baseDate);
-    tomorrow.setDate(baseDate.getDate() + 1);
-
-    const dateRange = [
-      yesterday.toISOString().split('T')[0],
-      gameDate,
-      tomorrow.toISOString().split('T')[0]
-    ];
-
+    const dateRange = getDateRange(gameDate);
     console.log('Fetching picks for date range:', dateRange);
-
+  
     const { data, error } = await supabase
       .from('picks')
       .select(`
@@ -117,6 +125,8 @@ export default function PickEntry() {
   };
 
   const createPickData = (parsedPick: ParsedPick): Pick => {
+    const pstGameDate = toPSTDate(gameDate);
+    
     if (parsedPick.pick_type === 'over_under') {
       if (parsedPick.over_under === undefined || parsedPick.is_over === undefined) {
         throw new Error('Invalid over/under pick format');
@@ -128,7 +138,7 @@ export default function PickEntry() {
         is_over: parsedPick.is_over,
         spread: 0,
         is_favorite: false,
-        game_date: gameDate,
+        game_date: pstGameDate,
         status: 'pending'
       };
     } else {
@@ -142,7 +152,7 @@ export default function PickEntry() {
         is_favorite: parsedPick.is_favorite,
         over_under: 0,
         is_over: false,
-        game_date: gameDate,
+        game_date: pstGameDate,
         status: 'pending'
       };
     }
