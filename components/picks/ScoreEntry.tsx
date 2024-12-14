@@ -36,8 +36,47 @@ interface TeamGame {
   game_date: string;
 }
 
+// Helper function to determine if a pick is a winner
+const calculateWinner = (
+  pick: Pick, 
+  teamScore: number, 
+  otherScore: number
+): boolean => {
+  const total = teamScore + otherScore;
+  const margin = teamScore - otherScore;
+
+  console.log('Calculating winner:', {
+    pick: pick.team,
+    teamScore,
+    otherScore,
+    margin,
+    spread: pick.spread,
+    is_favorite: pick.is_favorite,
+    is_over: pick.is_over,
+    over_under: pick.over_under
+  });
+
+  if (pick.over_under > 0) { // Over/Under bet
+    const isOver = total > pick.over_under;
+    console.log('Over/Under calculation:', { total, line: pick.over_under, isOver, picked_over: pick.is_over });
+    return isOver === pick.is_over;
+  } else { // Spread bet
+    if (pick.is_favorite) {
+      // Favorite needs to win by more than the spread
+      const covered = margin > pick.spread;
+      console.log('Favorite calculation:', { margin, spread: pick.spread, covered });
+      return covered;
+    } else {
+      // Underdog needs to lose by less than the spread (or win outright)
+      const covered = margin + pick.spread > 0;
+      console.log('Underdog calculation:', { margin, spread: pick.spread, adjusted_margin: margin + pick.spread, covered });
+      return covered;
+    }
+  }
+};
+
 export default function ScoreEntry() {
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(toPSTDate(new Date().toISOString()));
   const [pendingGames, setPendingGames] = useState<Map<string, TeamGame>>(new Map());
   const [uniqueTeams, setUniqueTeams] = useState<Set<string>>(new Set());
   const [message, setMessage] = useState('');
@@ -45,19 +84,7 @@ export default function ScoreEntry() {
   const fetchPendingPicks = useCallback(async () => {
     console.log('Fetching pending picks for date:', selectedDate);
     
-    // Get yesterday, today, and tomorrow for the selected date
-    const baseDate = new Date(selectedDate);
-    const yesterday = new Date(baseDate);
-    yesterday.setDate(baseDate.getDate() - 1);
-    const tomorrow = new Date(baseDate);
-    tomorrow.setDate(baseDate.getDate() + 1);
-
-    const dateRange = [
-      yesterday.toISOString().split('T')[0],
-      selectedDate,
-      tomorrow.toISOString().split('T')[0]
-    ];
-
+    const dateRange = getDateRange(selectedDate);
     console.log('Fetching picks for date range:', dateRange);
 
     const { data, error } = await supabase
@@ -73,8 +100,6 @@ export default function ScoreEntry() {
       .order('game_date', { ascending: true })
       .order('team');
 
-    console.log('Query response:', { data, error });
-
     if (error) {
       console.error('Error fetching picks:', error);
       return;
@@ -87,22 +112,13 @@ export default function ScoreEntry() {
       return;
     }
 
-    // Create a Map of teams and their picks, separating spread and over/under picks
     const gamesMap = new Map<string, TeamGame>();
     const teams = new Set<string>();
 
-    console.log('Processing picks:', data);
+    const determineBetType = (pick: Pick): 'over_under' | 'spread' => 
+      pick.over_under > 0 ? 'over_under' : 'spread';
 
-    const determineBetType = (pick: Pick) => {
-      // If is_over is not null and over_under is greater than 0, it's an over/under bet
-      if (pick.is_over !== null && pick.over_under > 0) {
-        return 'over_under';
-      }
-      return 'spread';
-    };
-
-    data?.forEach(pick => {
-      console.log('Processing pick:', pick);
+    data.forEach(pick => {
       teams.add(pick.team);
       
       if (!gamesMap.has(pick.team)) {
@@ -132,8 +148,6 @@ export default function ScoreEntry() {
           })
         };
 
-        console.log('Formatted pick:', formattedPick);
-
         if (betType === 'spread') {
           game.spread_picks.push(formattedPick);
         } else {
@@ -141,9 +155,6 @@ export default function ScoreEntry() {
         }
       }
     });
-
-    console.log('Final games map:', gamesMap);
-    console.log('Unique teams:', teams);
 
     setPendingGames(gamesMap);
     setUniqueTeams(teams);
@@ -169,20 +180,14 @@ export default function ScoreEntry() {
     const game = pendingGames.get(team);
     if (!game) return;
 
-    const total = Number(game.team_score) + Number(game.other_score);
+    const teamScore = Number(game.team_score);
+    const otherScore = Number(game.other_score);
     const allPicks = [...game.spread_picks, ...game.over_under_picks];
     
     try {
       const updatesToSend = allPicks.map(pick => {
-        const isWinner = pick.bet_type === 'over_under'
-          ? (() => {
-              const isOver = total > pick.over_under;
-              return isOver === pick.is_over;
-            })()
-          : (() => {
-              const margin = Number(game.team_score) - Number(game.other_score);
-              return margin > (pick.is_favorite ? -pick.spread : pick.spread);
-            })();
+        // Use the helper function to determine winner
+        const isWinner = calculateWinner(pick, teamScore, otherScore);
    
         // Update user points if pick is a winner
         if (isWinner) {
@@ -193,7 +198,7 @@ export default function ScoreEntry() {
               .eq('id', pick.user_id)
               .single();
    
-            if (!userError) {
+            if (!userError && userData) {
               await supabase
                 .from('users')
                 .update({ points: (userData.points || 0) + 1 })
