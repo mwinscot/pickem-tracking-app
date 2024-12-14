@@ -72,7 +72,7 @@ export default function PickEntry() {
   const fetchPendingPicks = async () => {
     try {
       const dateRange = getDateRange(gameDate);
-      console.log('Date debugging:', {
+      console.log('Detailed date debugging:', {
         inputGameDate: gameDate,
         dateRange,
         currentPST: toPSTDate(new Date().toISOString())
@@ -96,7 +96,12 @@ export default function PickEntry() {
         return;
       }
   
-      console.log('Fetched picks:', data);
+      // Log each pick's date before formatting
+      console.log('Raw picks with dates:', data?.map(pick => ({
+        team: pick.team,
+        game_date: pick.game_date,
+        formatted_date: formatPSTDisplay(pick.game_date)
+      })));
   
       const formattedPicks = data?.map(pick => ({
         ...pick,
