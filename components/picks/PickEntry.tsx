@@ -1,8 +1,10 @@
+// PickEntry.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { parsePick, formatPick } from '@/utils/pick-parser';
+import { toPSTDate, getDateRange } from '@/utils/date-utils';  // Import the utilities
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -39,31 +41,11 @@ interface ParsedPick {
   pick_type: 'spread' | 'over_under';
 }
 
-// Add these utility functions at the top of your file
-const toPSTDate = (date: string): string => {
-  // Convert the input date to PST (UTC-8)
-  const pstDate = new Date(date + 'T00:00:00-08:00');
-  return pstDate.toISOString().split('T')[0];
-};
-
-const getDateRange = (baseDate: string): string[] => {
-  const pstDate = new Date(baseDate + 'T00:00:00-08:00');
-  const yesterday = new Date(pstDate);
-  yesterday.setDate(pstDate.getDate() - 1);
-  const tomorrow = new Date(pstDate);
-  tomorrow.setDate(pstDate.getDate() + 1);
-
-  return [
-    yesterday.toISOString().split('T')[0],
-    pstDate.toISOString().split('T')[0],
-    tomorrow.toISOString().split('T')[0]
-  ];
-};
 export default function PickEntry() {
   const [users, setUsers] = useState<User[]>([]);
   const [selectedUser, setSelectedUser] = useState<string>('');
   const [pickInput, setPickInput] = useState('');
-  const [gameDate, setGameDate] = useState(new Date().toISOString().split('T')[0]);
+  const [gameDate, setGameDate] = useState(toPSTDate(new Date().toISOString().split('T')[0]));  // Initialize with PST date
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [pendingPicks, setPendingPicks] = useState<Pick[]>([]);
