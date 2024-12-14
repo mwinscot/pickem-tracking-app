@@ -278,12 +278,12 @@ export default function PickEntry() {
       </form>
 
       <div className="mt-8">
-        <h3 className="text-lg font-semibold mb-4">
-          Pending Picks for {new Date(gameDate).toLocaleDateString()}
-          <span className="text-sm font-normal text-gray-600 ml-2">
-            (includes picks from {new Date(gameDate).toLocaleDateString()} ± 1 day)
-          </span>
-        </h3>
+      <h3 className="text-lg font-semibold mb-4">
+      Pending Picks for {new Date(gameDate).toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }).split(',')[0]}
+      <span className="text-sm font-normal text-gray-600 ml-2">
+    (includes picks from {new Date(gameDate).toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }).split(',')[0]} ± 1 day)
+    </span>
+</h3>
         {pendingPicks.length === 0 ? (
           <div className="text-gray-500">No pending picks for this date range.</div>
         ) : (
@@ -295,8 +295,8 @@ export default function PickEntry() {
                     <span className="font-medium">{pick.users?.name}</span>: {pick.formatted_pick}
                   </div>
                   <div className="text-sm text-gray-500">
-                    {new Date(pick.game_date).toLocaleDateString()}
-                  </div>
+  {new Date(pick.game_date).toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }).split(',')[0]}
+</div>
                 </div>
               </div>
             ))}
