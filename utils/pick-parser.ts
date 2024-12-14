@@ -83,8 +83,10 @@ export function formatPick(pick: ParsedPick): string {
     const direction = pick.is_over ? 'O' : 'U';
     return `${pick.team} ${direction}${pick.over_under}`;
   } else {
-    // Handle undefined spread with nullish coalescing
-    const spread = pick.spread ?? 0;
-    return `${pick.team} ${spread > 0 ? '+' : '-'}${Math.abs(spread)}`;
+    // For spread picks, use is_favorite to determine the sign
+    // If is_favorite is true, it should be minus (-)
+    // If is_favorite is false, it should be plus (+)
+    const sign = pick.is_favorite ? '-' : '+';
+    return `${pick.team} ${sign}${pick.spread}`;
   }
 }
