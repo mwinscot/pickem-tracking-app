@@ -95,6 +95,12 @@ export default function PickEntry() {
   const fetchPendingPicks = async () => {
     try {
       const dateRange = getDateRange(gameDate);
+      console.log('Query date info:', {
+        gameDate,
+        dateRange,
+        toPST: toPSTDate(new Date().toISOString())
+      });
+  
       const { data, error } = await supabase
         .from('picks')
         .select(`
@@ -106,12 +112,10 @@ export default function PickEntry() {
         .in('game_date', dateRange)
         .order('game_date', { ascending: true })
         .order('team');
-
-        console.log('Supabase response:', { data, error }); // Add this
-
+  
       if (error) throw error;
-
-      const formattedPicks = data?.map(pick => ({
+  
+      const formattedPicks = (data || []).map((pick: Pick) => ({
         ...pick,
         formatted_pick: formatPick({
           team: pick.team,
@@ -121,8 +125,8 @@ export default function PickEntry() {
           is_over: pick.is_over,
           pick_type: pick.over_under > 0 ? 'over_under' : 'spread'
         })
-      })) || [];
-
+      }));
+  
       setGroupedPicks(groupPicksByStatus(formattedPicks));
     } catch (err) {
       console.error('Error in fetchPendingPicks:', err);
