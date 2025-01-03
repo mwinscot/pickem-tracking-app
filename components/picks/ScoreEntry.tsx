@@ -5,9 +5,7 @@ import { createClient } from '@supabase/supabase-js';
 import { formatPick } from '@/utils/pick-parser';
 import { toPSTDate, getDateRange } from '@/utils/date-utils';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
 const [gameDate, setGameDate] = useState(toPSTDate('2024-12-06'));
 
 interface Pick {
@@ -77,10 +75,12 @@ const calculateWinner = (
 };
 
 export default function ScoreEntry() {
-  const [selectedDate, setSelectedDate] = useState(toPSTDate(new Date().toISOString()));
-  const [pendingGames, setPendingGames] = useState<Map<string, TeamGame>>(new Map());
+  const [selectedDate, setSelectedDate] = useState(toPSTDate('2024-12-06'));  const [pendingGames, setPendingGames] = useState<Map<string, TeamGame>>(new Map());
   const [uniqueTeams, setUniqueTeams] = useState<Set<string>>(new Set());
   const [message, setMessage] = useState('');
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+  const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
   const fetchPendingPicks = useCallback(async () => {
     console.log('Fetching pending picks for date:', selectedDate);
