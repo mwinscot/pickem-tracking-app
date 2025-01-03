@@ -42,6 +42,10 @@ interface ParsedPick {
 }
 
 export default function PickEntry() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+  const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
   const defaultDate = '2024-12-06';
   const [gameDate, setGameDate] = useState(toPSTDate(defaultDate));
   const [users, setUsers] = useState<User[]>([]);
