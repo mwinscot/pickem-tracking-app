@@ -107,6 +107,8 @@ export default function PickEntry() {
         .order('game_date', { ascending: true })
         .order('team');
 
+        console.log('Supabase response:', { data, error }); // Add this
+
       if (error) throw error;
 
       const formattedPicks = data?.map(pick => ({
