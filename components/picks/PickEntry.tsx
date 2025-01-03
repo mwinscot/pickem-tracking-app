@@ -44,10 +44,11 @@ interface ParsedPick {
 }
 
 export default function PickEntry() {
+  const defaultDate = '2024-12-06';
+  const [gameDate, setGameDate] = useState(toPSTDate(defaultDate));
   const [users, setUsers] = useState<User[]>([]);
   const [selectedUser, setSelectedUser] = useState<string>('');
   const [pickInput, setPickInput] = useState('');
-  const [gameDate, setGameDate] = useState(toPSTDate(new Date().toISOString()));
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [groupedPicks, setGroupedPicks] = useState<{
