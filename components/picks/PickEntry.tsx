@@ -1,4 +1,3 @@
-// PickEntry.tsx
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -9,7 +8,6 @@ import { toPSTDate, getDateRange, formatPSTDisplay } from '@/utils/date-utils';
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
-const [gameDate, setGameDate] = useState(toPSTDate('2024-12-06'));
 
 interface User {
   id: string;
