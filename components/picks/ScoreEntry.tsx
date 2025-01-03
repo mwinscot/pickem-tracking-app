@@ -78,18 +78,15 @@ export default function ScoreEntry() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
   const supabase = createClient(supabaseUrl, supabaseAnonKey);
-  
+ 
   const [selectedDate, setSelectedDate] = useState(toPSTDate('2024-12-06'));
   const [pendingGames, setPendingGames] = useState<Map<string, TeamGame>>(new Map());
   const [uniqueTeams, setUniqueTeams] = useState<Set<string>>(new Set());
   const [message, setMessage] = useState('');
-
+ 
   const fetchPendingPicks = useCallback(async () => {
-    console.log('Fetching pending picks for date:', selectedDate);
-    
     const dateRange = getDateRange(selectedDate);
-    console.log('Fetching picks for date range:', dateRange);
-
+    
     const { data, error } = await supabase
       .from('picks')
       .select(`
@@ -98,29 +95,24 @@ export default function ScoreEntry() {
           name
         )
       `)
-      .eq('status', 'pending')
       .in('game_date', dateRange)
       .order('game_date', { ascending: true })
       .order('team');
-
+ 
     if (error) {
       console.error('Error fetching picks:', error);
       return;
     }
-
+ 
     if (!data || data.length === 0) {
-      console.log('No pending picks found');
       setPendingGames(new Map());
       setUniqueTeams(new Set());
       return;
     }
-
+ 
     const gamesMap = new Map<string, TeamGame>();
     const teams = new Set<string>();
-
-    const determineBetType = (pick: Pick): 'over_under' | 'spread' => 
-      pick.over_under > 0 ? 'over_under' : 'spread';
-
+    
     data.forEach(pick => {
       teams.add(pick.team);
       
@@ -134,10 +126,10 @@ export default function ScoreEntry() {
           game_date: pick.game_date
         });
       }
-
+ 
       const game = gamesMap.get(pick.team);
       if (game) {
-        const betType = determineBetType(pick);
+        const betType = pick.over_under > 0 ? 'over_under' : 'spread';
         const formattedPick = {
           ...pick,
           bet_type: betType,
@@ -150,7 +142,7 @@ export default function ScoreEntry() {
             pick_type: betType
           })
         };
-
+ 
         if (betType === 'spread') {
           game.spread_picks.push(formattedPick);
         } else {
@@ -158,15 +150,15 @@ export default function ScoreEntry() {
         }
       }
     });
-
+ 
     setPendingGames(gamesMap);
     setUniqueTeams(teams);
-  }, [selectedDate]);
-
+  }, [selectedDate, supabase]);
+ 
   useEffect(() => {
     fetchPendingPicks();
   }, [fetchPendingPicks]);
-
+  
   const handleScoreChange = (team: string, scoreType: 'team' | 'other', value: string) => {
     setPendingGames(prevGames => {
       const newGames = new Map(prevGames);
