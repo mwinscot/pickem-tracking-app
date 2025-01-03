@@ -55,8 +55,10 @@ export default function PickEntry() {
   }>({ pending: [], scoredByUser: {} });
 
   const groupPicksByStatus = (picks: Pick[]) => {
+    console.log('All picks:', picks); // Add this
     const pending = picks.filter(p => p.status === 'pending');
     const scored = picks.filter(p => p.status === 'completed');
+    console.log('Scored picks:', scored); // Add this
     
     const scoredByUser = scored.reduce((acc, pick) => {
       const userName = pick.users?.name || 'Unknown User';
@@ -66,7 +68,8 @@ export default function PickEntry() {
       acc[userName].push(pick);
       return acc;
     }, {} as Record<string, Pick[]>);
-
+  
+    console.log('Scored by user:', scoredByUser); // Add this
     return { pending, scoredByUser };
   };
 
