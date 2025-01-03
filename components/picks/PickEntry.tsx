@@ -1,7 +1,7 @@
 // PickEntry.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { parsePick, formatPick } from '@/utils/pick-parser';
 import { toPSTDate, getDateRange, formatPSTDisplay } from '@/utils/date-utils';
@@ -75,11 +75,6 @@ export default function PickEntry() {
     return { pending, scoredByUser };
   };
 
-  useEffect(() => {
-    fetchUsers();
-    fetchPendingPicks();
-  }, [gameDate]);
-
   const fetchUsers = async () => {
     const { data, error } = await supabase
       .from('users')
@@ -94,29 +89,18 @@ export default function PickEntry() {
     setUsers(data || []);
   };
 
-  const fetchPendingPicks = async () => {
+  const fetchPendingPicks = useCallback(async () => {
     try {
       const dateRange = getDateRange(gameDate);
-      console.log('Query date info:', {
-        gameDate,
-        dateRange,
-        toPST: toPSTDate(new Date().toISOString())
-      });
-  
       const { data, error } = await supabase
         .from('picks')
-        .select(`
-          *,
-          users (
-            name
-          )
-        `)
+        .select(`*, users (name)`)
         .in('game_date', dateRange)
         .order('game_date', { ascending: true })
         .order('team');
-  
+
       if (error) throw error;
-  
+
       const formattedPicks = (data || []).map((pick: Pick) => ({
         ...pick,
         formatted_pick: formatPick({
@@ -128,12 +112,17 @@ export default function PickEntry() {
           pick_type: pick.over_under > 0 ? 'over_under' : 'spread'
         })
       }));
-  
+
       setGroupedPicks(groupPicksByStatus(formattedPicks));
     } catch (err) {
       console.error('Error in fetchPendingPicks:', err);
     }
-  };
+  }, [gameDate]);
+
+  useEffect(() => {
+    fetchUsers();
+    fetchPendingPicks();
+  }, [fetchPendingPicks]);
 
   const createPickData = (parsedPick: ParsedPick): Pick => {
     const pstGameDate = toPSTDate(gameDate);
