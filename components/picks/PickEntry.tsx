@@ -25,7 +25,8 @@ interface Pick {
   is_favorite: boolean;
   is_over: boolean;
   game_date: string;
-  status: 'pending';
+  status: 'pending' | 'completed';
+  winner?: boolean;
   users?: {
     name: string;
   };
@@ -48,7 +49,26 @@ export default function PickEntry() {
   const [gameDate, setGameDate] = useState(toPSTDate(new Date().toISOString()));
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
-  const [pendingPicks, setPendingPicks] = useState<Pick[]>([]);
+  const [groupedPicks, setGroupedPicks] = useState<{
+    pending: Pick[];
+    scoredByUser: Record<string, Pick[]>;
+  }>({ pending: [], scoredByUser: {} });
+
+  const groupPicksByStatus = (picks: Pick[]) => {
+    const pending = picks.filter(p => p.status === 'pending');
+    const scored = picks.filter(p => p.status === 'completed');
+    
+    const scoredByUser = scored.reduce((acc, pick) => {
+      const userName = pick.users?.name || 'Unknown User';
+      if (!acc[userName]) {
+        acc[userName] = [];
+      }
+      acc[userName].push(pick);
+      return acc;
+    }, {} as Record<string, Pick[]>);
+
+    return { pending, scoredByUser };
+  };
 
   useEffect(() => {
     fetchUsers();
@@ -72,12 +92,6 @@ export default function PickEntry() {
   const fetchPendingPicks = async () => {
     try {
       const dateRange = getDateRange(gameDate);
-      console.log('Detailed date debugging:', {
-        inputGameDate: gameDate,
-        dateRange,
-        currentPST: toPSTDate(new Date().toISOString())
-      });
-  
       const { data, error } = await supabase
         .from('picks')
         .select(`
@@ -86,23 +100,12 @@ export default function PickEntry() {
             name
           )
         `)
-        .eq('status', 'pending')
         .in('game_date', dateRange)
         .order('game_date', { ascending: true })
         .order('team');
-  
-      if (error) {
-        console.error('Error fetching pending picks:', error);
-        return;
-      }
-  
-      // Log each pick's date before formatting
-      console.log('Raw picks with dates:', data?.map(pick => ({
-        team: pick.team,
-        game_date: pick.game_date,
-        formatted_date: formatPSTDisplay(pick.game_date)
-      })));
-  
+
+      if (error) throw error;
+
       const formattedPicks = data?.map(pick => ({
         ...pick,
         formatted_pick: formatPick({
@@ -113,13 +116,14 @@ export default function PickEntry() {
           is_over: pick.is_over,
           pick_type: pick.over_under > 0 ? 'over_under' : 'spread'
         })
-      }));
-  
-      setPendingPicks(formattedPicks || []);
+      })) || [];
+
+      setGroupedPicks(groupPicksByStatus(formattedPicks));
     } catch (err) {
       console.error('Error in fetchPendingPicks:', err);
     }
   };
+
   const createPickData = (parsedPick: ParsedPick): Pick => {
     const pstGameDate = toPSTDate(gameDate);
     
@@ -282,31 +286,65 @@ export default function PickEntry() {
         </button>
       </form>
 
-      <div className="mt-8">
-      <h3 className="text-lg font-semibold mb-4">
-  Pending Picks for {formatPSTDisplay(gameDate)}
-  <span className="text-sm font-normal text-gray-600 ml-2">
-    (includes picks from {formatPSTDisplay(gameDate)} ± 1 day)
-  </span>
-</h3>
-        {pendingPicks.length === 0 ? (
-          <div className="text-gray-500">No pending picks for this date range.</div>
-        ) : (
-          <div className="space-y-2">
-            {pendingPicks.map((pick) => (
-  <div key={pick.id} className="p-3 bg-gray-50 rounded-md">
-    <div className="flex justify-between items-center">
-      <div>
-        <span className="font-medium">{pick.users?.name}</span>: {pick.formatted_pick}
-      </div>
-      <div className="text-sm text-gray-500">
-        {formatPSTDisplay(pick.game_date)}
-      </div>
-    </div>
-  </div>
-))}
-          </div>
-        )}
+      <div className="mt-8 space-y-8">
+        {/* Pending Picks Section */}
+        <div>
+          <h3 className="text-lg font-semibold mb-4">
+            Pending Picks for {formatPSTDisplay(gameDate)}
+            <span className="text-sm font-normal text-gray-600 ml-2">
+              (includes picks from {formatPSTDisplay(gameDate)} ± 1 day)
+            </span>
+          </h3>
+          {groupedPicks.pending.length === 0 ? (
+            <div className="text-gray-500">No pending picks.</div>
+          ) : (
+            <div className="space-y-2">
+              {groupedPicks.pending.map((pick: Pick) => (
+                <div key={pick.id} className="p-3 bg-yellow-50 rounded-md">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <span className="font-medium">{pick.users?.name}</span>: {pick.formatted_pick}
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      {formatPSTDisplay(pick.game_date)}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Scored Picks Section */}
+        <div>
+          <h3 className="text-lg font-semibold mb-4">Scored Picks</h3>
+          {Object.keys(groupedPicks.scoredByUser).length === 0 ? (
+            <div className="text-gray-500">No scored picks.</div>
+          ) : (
+            <div className="space-y-4">
+              {Object.entries(groupedPicks.scoredByUser).map(([userName, picks]) => (
+                <div key={userName} className="p-4 bg-gray-50 rounded-md">
+                  <h4 className="font-medium mb-2">{userName}</h4>
+                  <div className="space-y-2">
+                    {picks.map((pick) => (
+                      <div key={pick.id} className="flex justify-between items-center text-sm">
+                        <div>
+                          {pick.team}: {pick.formatted_pick}
+                          <span className={`ml-2 ${pick.winner ? 'text-green-600' : 'text-red-600'}`}>
+                            ({pick.winner ? 'Win' : 'Loss'})
+                          </span>
+                        </div>
+                        <div className="text-gray-500">
+                          {formatPSTDisplay(pick.game_date)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
