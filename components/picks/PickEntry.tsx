@@ -46,8 +46,8 @@ export default function PickEntry() {
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
   const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-  const defaultDate = new Date().toISOString().split('T')[0]; 
-  const [gameDate, setGameDate] = useState(toPSTDate(defaultDate));
+  const defaultDate = new Date().toISOString().split('T')[0];
+  const [gameDate, setGameDate] = useState(defaultDate); // Remove toPSTDate here
   const [users, setUsers] = useState<User[]>([]);
   const [selectedUser, setSelectedUser] = useState<string>('');
   const [pickInput, setPickInput] = useState('');
@@ -309,7 +309,7 @@ export default function PickEntry() {
         {/* Pending Picks Section */}
         <div>
           <h3 className="text-lg font-semibold mb-4">
-            Pending Picks for {formatPSTDisplay(gameDate)}
+            Pending Picks for {new Date(gameDate).toLocaleDateString()}
             <span className="text-sm font-normal text-gray-600 ml-2">
               (includes picks from {formatPSTDisplay(gameDate)} ± 1 day)
             </span>
