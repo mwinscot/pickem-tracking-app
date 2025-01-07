@@ -5,8 +5,12 @@ export const toPSTDate = (date: string | Date = new Date()): string => {
 };
 
 export const formatPSTDisplay = (dateStr: string): string => {
-  const date = new Date(dateStr);
-  return date.toLocaleDateString('en-US', { timeZone: 'America/Los_Angeles' });
+  return new Date(dateStr).toLocaleDateString('en-US', { 
+    timeZone: 'America/Los_Angeles',
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric'
+  });
 };
 
 export const getDateRange = (date: string): string[] => {
