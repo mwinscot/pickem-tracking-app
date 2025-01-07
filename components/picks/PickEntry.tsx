@@ -175,8 +175,12 @@ export default function PickEntry() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    setMessage('');
+    console.log('Submit date check:', {
+      gameDate,
+      parsedDate: new Date(gameDate),
+      defaultDate,
+      now: new Date()
+    });
 
     if (!selectedUser) {
       setError('Please select a user');
