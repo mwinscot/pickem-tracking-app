@@ -94,7 +94,14 @@ export default function PickEntry() {
 
   const fetchPendingPicks = useCallback(async () => {
     try {
-      const dateRange = getDateRange(gameDate);
+      const today = new Date();
+      const dateRange = [
+        today.toISOString().split('T')[0],
+        new Date(today.setDate(today.getDate() + 1)).toISOString().split('T')[0]
+      ];
+      
+      console.log('Fetching with dates:', dateRange);
+      
       const { data, error } = await supabase
         .from('picks')
         .select('*, users(name)')
@@ -118,7 +125,7 @@ export default function PickEntry() {
   
       setGroupedPicks(groupPicksByStatus(formattedPicks));
     } catch (err) {
-      console.error('Error in fetchPendingPicks:', err);
+      console.error('Error details:', err);
     }
   }, [gameDate, supabase, groupPicksByStatus]);
 
