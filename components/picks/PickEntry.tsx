@@ -94,12 +94,7 @@ export default function PickEntry() {
 
   const fetchPendingPicks = useCallback(async () => {
     try {
-      const today = new Date();
-      const dateRange = [
-        today.toISOString().split('T')[0],
-        new Date(today.setDate(today.getDate() + 1)).toISOString().split('T')[0]
-      ];
-      
+      const dateRange = getDateRange(gameDate); // Use this instead of creating new dates
       console.log('Fetching with dates:', dateRange);
       
       const { data, error } = await supabase
@@ -308,12 +303,12 @@ export default function PickEntry() {
       <div className="mt-8 space-y-8">
         {/* Pending Picks Section */}
         <div>
-          <h3 className="text-lg font-semibold mb-4">
-            Pending Picks for {new Date(gameDate).toLocaleDateString()}
-            <span className="text-sm font-normal text-gray-600 ml-2">
-              (includes picks from {formatPSTDisplay(gameDate)} ± 1 day)
-            </span>
-          </h3>
+        <h3 className="text-lg font-semibold mb-4">
+  Pending Picks for {formatPSTDisplay(gameDate)}
+  <span className="text-sm font-normal text-gray-600 ml-2">
+    (includes picks from {formatPSTDisplay(gameDate)} ± 1 day)
+  </span>
+</h3>
           {groupedPicks.pending.length === 0 ? (
             <div className="text-gray-500">No pending picks.</div>
           ) : (
