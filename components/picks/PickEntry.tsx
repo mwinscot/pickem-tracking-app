@@ -129,6 +129,11 @@ export default function PickEntry() {
 
   const createPickData = (parsedPick: ParsedPick): Pick => {
     const pstGameDate = toPSTDate(gameDate);
+    console.log('Date debug:', {
+      inputGameDate: gameDate,
+      convertedPSTDate: pstGameDate,
+      rawNewDate: new Date().toISOString()
+    });
     
     if (parsedPick.pick_type === 'over_under') {
       if (parsedPick.over_under === undefined || parsedPick.is_over === undefined) {
