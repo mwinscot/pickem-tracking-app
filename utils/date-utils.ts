@@ -14,16 +14,20 @@ export const formatPSTDisplay = (dateStr: string): string => {
 };
 
 export const getDateRange = (date: string): string[] => {
+  console.log('getDateRange input:', date);
   const baseDate = new Date(date);
+  console.log('baseDate:', baseDate);
   const prevDay = new Date(baseDate);
   const nextDay = new Date(baseDate);
   
   prevDay.setDate(baseDate.getDate() - 1);
   nextDay.setDate(baseDate.getDate() + 1);
   
-  return [
+  const range = [
     prevDay.toISOString().split('T')[0],
     baseDate.toISOString().split('T')[0],
     nextDay.toISOString().split('T')[0]
   ];
+  console.log('date range:', range);
+  return range;
 };
