@@ -46,7 +46,7 @@ export default function PickEntry() {
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
   const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-  const defaultDate = '2024-12-06';
+  const defaultDate = new Date().toISOString().split('T')[0]; 
   const [gameDate, setGameDate] = useState(toPSTDate(defaultDate));
   const [users, setUsers] = useState<User[]>([]);
   const [selectedUser, setSelectedUser] = useState<string>('');

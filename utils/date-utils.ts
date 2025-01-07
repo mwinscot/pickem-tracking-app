@@ -2,12 +2,9 @@
 
 export const toPSTDate = (date: string | Date = new Date()): string => {
   const d = typeof date === 'string' ? new Date(date) : date;
-  return d.toLocaleDateString('en-US', {
-    timeZone: 'America/Los_Angeles',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit'
-  }).split('/').join('-');
+  return new Date(d.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }))
+    .toISOString()
+    .split('T')[0];
 };
 
 export const formatPSTDisplay = (dateString: string): string => {
