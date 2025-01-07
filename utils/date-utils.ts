@@ -1,16 +1,13 @@
 // utils/date-utils.ts
 
-export const toPSTDate = (dateString: string): string => {
-  // Create a date object
-  const date = new Date(dateString);
-  
-  // Get the date in PST/PDT
-  const pstDate = new Date(date.toLocaleString('en-US', {
-    timeZone: 'America/Los_Angeles'
-  }));
-  
-  // Format as YYYY-MM-DD
-  return pstDate.toISOString().split('T')[0];
+export const toPSTDate = (date: string | Date = new Date()): string => {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  return d.toLocaleDateString('en-US', {
+    timeZone: 'America/Los_Angeles',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).split('/').join('-');
 };
 
 export const formatPSTDisplay = (dateString: string): string => {

@@ -77,7 +77,7 @@ export default function PickEntry() {
     return { pending, scoredByUser };
   };
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     const { data, error } = await supabase
       .from('users')
       .select('id, name, picks_remaining')
@@ -87,22 +87,23 @@ export default function PickEntry() {
       console.error('Error fetching users:', error);
       return;
     }
-
+  
     setUsers(data || []);
-  };
+  }, [supabase]);
+  
 
   const fetchPendingPicks = useCallback(async () => {
     try {
       const dateRange = getDateRange(gameDate);
       const { data, error } = await supabase
         .from('picks')
-        .select(`*, users (name)`)
+        .select('*, users(name)')
         .in('game_date', dateRange)
         .order('game_date', { ascending: true })
         .order('team');
-
+  
       if (error) throw error;
-
+  
       const formattedPicks = (data || []).map((pick: Pick) => ({
         ...pick,
         formatted_pick: formatPick({
@@ -114,12 +115,12 @@ export default function PickEntry() {
           pick_type: pick.over_under > 0 ? 'over_under' : 'spread'
         })
       }));
-
+  
       setGroupedPicks(groupPicksByStatus(formattedPicks));
     } catch (err) {
       console.error('Error in fetchPendingPicks:', err);
     }
-  }, [gameDate]);
+  }, [gameDate, supabase, groupPicksByStatus]);
 
   useEffect(() => {
     fetchUsers();
