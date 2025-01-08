@@ -155,22 +155,23 @@ export default function ScoreEntry() {
   }, [pendingGames]);
   
   const handleScoreChange = (team: string, scoreType: 'team' | 'other', value: string) => {
-    console.log('Score change:', { team, scoreType, value });
-    // Prevent default behavior
-    event?.preventDefault();
+    console.log('Before change:', { team, scoreType, value, currentState: pendingGames[team] });
     
-    // Allow empty string or numbers only
+    // Only allow numbers
     if (value === '' || /^\d+$/.test(value)) {
-      setPendingGames(prev => {
-        const updatedGames = {
-          ...prev,
-          [team]: {
-            ...prev[team],
-            [`${scoreType}_score`]: value
-          }
+      setPendingGames(prevGames => {
+        const updatedGame = {
+          ...prevGames[team],
+          [`${scoreType}_score`]: value
         };
-        console.log('Updated games state:', updatedGames);
-        return updatedGames;
+        
+        const newState = {
+          ...prevGames,
+          [team]: updatedGame
+        };
+        
+        console.log('After change:', { team, scoreType, value, newGameState: updatedGame });
+        return newState;
       });
     }
   };
@@ -275,36 +276,32 @@ export default function ScoreEntry() {
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4 mb-4">
-<div>
-  <label className="block text-sm font-medium text-gray-700">
-    {team} Score
-  </label>
-  <input
-    type="text"
-    value={game.team_score}
-    onChange={(e) => handleScoreChange(team, 'team', e.target.value)}
-    className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
-    inputMode="numeric"
-    pattern="\d*"
-    min="0"
-    max="999"
-  />
-</div>
-<div>
-  <label className="block text-sm font-medium text-gray-700">
-    Other Team Score
-  </label>
-  <input
-    type="text"
-    value={game.other_score}
-    onChange={(e) => handleScoreChange(team, 'other', e.target.value)}
-    className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
-    inputMode="numeric"
-    pattern="\d*"
-    min="0"
-    max="999"
-  />
-</div>
+  <div>
+    <label className="block text-sm font-medium text-gray-700">
+      {team} Score
+    </label>
+    <input
+      type="number"
+      value={game.team_score}
+      onChange={(e) => handleScoreChange(team, 'team', e.target.value)}
+      className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
+      min="0"
+      max="999"
+    />
+  </div>
+  <div>
+    <label className="block text-sm font-medium text-gray-700">
+      Other Team Score
+    </label>
+    <input
+      type="number"
+      value={game.other_score}
+      onChange={(e) => handleScoreChange(team, 'other', e.target.value)}
+      className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
+      min="0"
+      max="999"
+    />
+  </div>
 </div>
 
                 {game.spread_picks.length > 0 && (
