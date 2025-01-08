@@ -144,7 +144,11 @@
       
       setPendingGames(gamesMap);
       setUniqueTeams(Array.from(uniqueTeams));
-    }, [selectedDate, supabase]);
+    }, [supabase]);
+
+    useEffect(() => {
+      fetchPendingPicks();
+    }, [fetchPendingPicks]);
     
     const handleScoreChange = (team: string, scoreType: 'team' | 'other', value: string) => {
       setPendingGames(prev => ({
