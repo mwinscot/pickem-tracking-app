@@ -155,36 +155,39 @@ export default function ScoreEntry() {
   }, [pendingGames]);
   
   const handleScoreChange = (team: string, scoreType: 'team' | 'other', value: string) => {
-    console.log('handleScoreChange called:', { team, scoreType, value });
-
-    // Don't allow non-numeric values
-    if (value !== '' && !/^\d+$/.test(value)) {
-      return;
-    }
+    // Log the initial event
+    console.log('=== Score Change Event ===');
+    console.log('Input received:', { team, scoreType, value });
+    console.log('Current game state:', pendingGames[team]);
 
     setPendingGames(prevGames => {
-      // Create a deep copy of the game object
-      const gameToUpdate = { ...prevGames[team] };
+      console.log('Setting state - Previous games:', prevGames);
       
-      // Update the score
-      if (scoreType === 'team') {
-        gameToUpdate.team_score = value;
-      } else {
-        gameToUpdate.other_score = value;
-      }
-
-      // Create new state object
+      const gameToUpdate = { ...prevGames[team] };
+      console.log('Game to update:', gameToUpdate);
+      
+      const updatedGame = {
+        ...gameToUpdate,
+        [`${scoreType}_score`]: value
+      };
+      
+      console.log('Updated game object:', updatedGame);
+      
       const newState = {
         ...prevGames,
-        [team]: gameToUpdate
+        [team]: updatedGame
       };
-
-      console.log('Previous state:', prevGames[team]);
-      console.log('Updated state:', newState[team]);
       
+      console.log('New complete state:', newState);
       return newState;
     });
   };
+
+  // Add an effect to log state changes
+  useEffect(() => {
+    console.log('=== State Update ===');
+    console.log('PendingGames updated:', pendingGames);
+  }, [pendingGames]);
   
   const handleSubmitScore = async (team: string) => {
     const game = pendingGames[team];
@@ -295,6 +298,7 @@ export default function ScoreEntry() {
                       type="text"
                       value={game.team_score || ''}
                       onChange={(e) => handleScoreChange(team, 'team', e.target.value)}
+                      onFocus={(e) => console.log('Input focused:', { team, type: 'team', currentValue: e.target.value })}
                       className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
                     />
                   </div>
@@ -306,6 +310,7 @@ export default function ScoreEntry() {
                       type="text"
                       value={game.other_score || ''}
                       onChange={(e) => handleScoreChange(team, 'other', e.target.value)}
+                      onFocus={(e) => console.log('Input focused:', { team, type: 'other', currentValue: e.target.value })}
                       className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
                     />
                   </div>
