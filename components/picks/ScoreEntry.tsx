@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { formatPick } from '@/utils/pick-parser';
-import { toPSTDate, getDateRange } from '@/utils/date-utils';
+import { toPSTDate } from '@/utils/date-utils';
 
 interface Pick {
   id: string;
@@ -89,7 +89,6 @@ export default function ScoreEntry() {
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
   const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-  const [selectedDate, setSelectedDate] = useState(toPSTDate(new Date().toISOString().split('T')[0]));
   const [pendingGames, setPendingGames] = useState<Record<string, TeamGame>>({});
   const [uniqueTeams, setUniqueTeams] = useState<string[]>([]);
   const [message, setMessage] = useState('');
@@ -100,8 +99,8 @@ export default function ScoreEntry() {
       .from('picks')
       .select(`*, users(name)`)
       .eq('status', 'pending')
-      .order('game_date', { ascending: true })
-      .order('team');
+      .order('team')
+      .order('game_date', { ascending: true });
   
     if (error) {
       console.error('Error fetching picks:', error);
