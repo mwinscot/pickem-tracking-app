@@ -84,6 +84,12 @@
     const fetchPendingPicks = useCallback(async () => {
       const dateRange = getDateRange(selectedDate);
       
+      console.log('Query params:', {
+        dateRange,
+        dateLengths: dateRange.map(d => d.length),
+        query: `.in('game_date', ${JSON.stringify(dateRange)})`
+      });
+      
       const { data, error } = await supabase
         .from('picks')
         .select(`*, users(name)`)
