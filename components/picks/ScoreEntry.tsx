@@ -149,6 +149,10 @@ export default function ScoreEntry() {
   useEffect(() => {
     fetchPendingPicks();
   }, [fetchPendingPicks]);
+
+  useEffect(() => {
+    console.log('Pending games state updated:', pendingGames);
+  }, [pendingGames]);
   
   const handleScoreChange = (team: string, scoreType: 'team' | 'other', value: string) => {
     setPendingGames(prev => ({
