@@ -157,21 +157,20 @@
     }, [fetchPendingPicks]);
     
     const handleScoreChange = (team: string, scoreType: 'team' | 'other', value: string) => {
-      console.log('Score change:', { team, scoreType, value });
-      
+      console.log('Before update:', pendingGames.get(team));
       setPendingGames(prevGames => {
         const newGames = new Map(prevGames);
-        const game = newGames.get(team);
-        if (game) {
-          const newGame = {
-            ...game,
-            [`${scoreType}_score`]: value
-          };
-          newGames.set(team, newGame);
-          console.log('Updated game:', newGames.get(team));
-        }
+        const currentGame = newGames.get(team);
+        if (!currentGame) return prevGames;
+        
+        newGames.set(team, {
+          ...currentGame,
+          [`${scoreType}_score`]: value
+        });
+        
         return newGames;
       });
+      console.log('After update attempt:', pendingGames.get(team));
     };
 
     const handleSubmitScore = async (team: string) => {
@@ -298,12 +297,14 @@
                         Other Team Score
                       </label>
                       <input
-                        type="number"
-                        value={game.other_score}
-                        onChange={(e) => handleScoreChange(team, 'other', e.target.value)}
-                        className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
-                        placeholder="Score"
-                      />
+  type="number"
+  value={game.team_score || ''}
+  onChange={(e) => handleScoreChange(team, 'team', e.target.value)}
+  onWheel={(e) => e.currentTarget.blur()}
+  min="0"
+  className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
+  placeholder="Score"
+/>
                     </div>
                   </div>
 
