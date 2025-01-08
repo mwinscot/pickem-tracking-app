@@ -222,16 +222,6 @@
     return (
       <div className="max-w-4xl mx-auto p-4">
         <h2 className="text-xl font-bold mb-4">Enter Game Scores</h2>
-        
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700">Game Date</label>
-          <input
-            type="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
-          />
-        </div>
 
         {message && (
           <div className="mt-4 p-4 bg-green-50 text-green-700 rounded-md">
