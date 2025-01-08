@@ -254,13 +254,8 @@
                       </label>
                       <input
   type="number"
-  value={game.team_score}
-  onChange={(e) => {
-    const value = e.target.value;
-    handleScoreChange(team, 'team', value);
-    console.log('Input event value:', value);
-  }}
-  onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+  value={game.other_score || ''}
+  onChange={(e) => handleScoreChange(team, 'other', e.target.value)}
   className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
   placeholder="Score"
 />
@@ -271,10 +266,8 @@
                       </label>
                       <input
   type="number"
-  value={game.team_score || ''}
-  onChange={(e) => handleScoreChange(team, 'team', e.target.value)}
-  onWheel={(e) => e.currentTarget.blur()}
-  min="0"
+  value={game.other_score || ''}
+  onChange={(e) => handleScoreChange(team, 'other', e.target.value)}
   className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
   placeholder="Score"
 />
