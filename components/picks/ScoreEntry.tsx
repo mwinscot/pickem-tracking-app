@@ -155,25 +155,21 @@ export default function ScoreEntry() {
   }, [pendingGames]);
   
   const handleScoreChange = (team: string, scoreType: 'team' | 'other', value: string) => {
-    console.log('Before change:', { team, scoreType, value, currentState: pendingGames[team] });
-    
-    // Only allow numbers
-    if (value === '' || /^\d+$/.test(value)) {
-      setPendingGames(prevGames => {
-        const updatedGame = {
+    console.log('handleScoreChange called:', { team, scoreType, value });
+
+    setPendingGames(prevGames => {
+      if (!prevGames[team]) return prevGames;
+
+      const updatedGames = {
+        ...prevGames,
+        [team]: {
           ...prevGames[team],
           [`${scoreType}_score`]: value
-        };
-        
-        const newState = {
-          ...prevGames,
-          [team]: updatedGame
-        };
-        
-        console.log('After change:', { team, scoreType, value, newGameState: updatedGame });
-        return newState;
-      });
-    }
+        }
+      };
+      console.log('New state:', updatedGames[team]);
+      return updatedGames;
+    });
   };
   
   const handleSubmitScore = async (team: string) => {
@@ -264,12 +260,13 @@ export default function ScoreEntry() {
             (includes games from {new Date(selectedDate).toLocaleDateString()} ± 1 day)
           </span>
         </h3>
+        
         {Object.keys(pendingGames).length === 0 ? (
-<div className="text-gray-500">No pending picks to score.</div>
-) : (
+          <div className="text-gray-500">No pending picks to score.</div>
+        ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-{Object.entries(pendingGames).map(([team, game]) => (                
-<div key={team} className="bg-white shadow rounded-lg p-4">
+            {Object.entries(pendingGames).map(([team, game]) => (
+              <div key={team} className="bg-white shadow rounded-lg p-4">
                 <h4 className="font-bold text-lg text-gray-900 mb-2">{team}</h4>
                 <div className="text-sm text-gray-600 mb-4">
                   Game Date: {new Date(game.game_date).toLocaleDateString()}
@@ -281,12 +278,11 @@ export default function ScoreEntry() {
       {team} Score
     </label>
     <input
-      type="number"
+      type="text"
+      inputMode="numeric"
       value={game.team_score}
       onChange={(e) => handleScoreChange(team, 'team', e.target.value)}
       className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
-      min="0"
-      max="999"
     />
   </div>
   <div>
@@ -294,12 +290,11 @@ export default function ScoreEntry() {
       Other Team Score
     </label>
     <input
-      type="number"
+      type="text"
+      inputMode="numeric"
       value={game.other_score}
       onChange={(e) => handleScoreChange(team, 'other', e.target.value)}
       className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
-      min="0"
-      max="999"
     />
   </div>
 </div>
