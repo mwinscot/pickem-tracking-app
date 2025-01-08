@@ -82,6 +82,7 @@
     const [message, setMessage] = useState('');
   
     const fetchPendingPicks = useCallback(async () => {
+      console.log('Input date for range:', selectedDate);
       const dateRange = getDateRange(selectedDate);
       
       console.log('Query params:', {
