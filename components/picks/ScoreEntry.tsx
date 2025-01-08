@@ -220,9 +220,10 @@ export default function ScoreEntry() {
       for (const pick of allPicks) {
         const isWinner = calculateWinner(pick, teamScore, otherScore);
         
-        // Add pick status update
+        // Add pick status update with user_id
         updates.push({
           id: pick.id,
+          user_id: pick.user_id,  // Make sure to include user_id
           team: pick.team,
           spread: pick.spread,
           over_under: pick.over_under,
@@ -232,23 +233,34 @@ export default function ScoreEntry() {
           winner: isWinner,
           game_date: pick.game_date
         });
-  
-        // If winner, prepare points update
+
+        // Log the update for verification
+        console.log('Updating pick:', {
+          id: pick.id,
+          team: pick.team,
+          status: 'completed',
+          winner: isWinner
+        });
+
         if (isWinner) {
           pointUpdates.push(pick.user_id);
         }
       }
-  
-      // Execute pick updates first
-      const { error: picksError } = await supabase
+
+      // Execute pick updates with better error logging
+      const { data, error: picksError } = await supabase
         .from('picks')
         .upsert(updates, { 
-          onConflict: 'id',
-          ignoreDuplicates: false
+          onConflict: 'id'
         });
-  
-      if (picksError) throw picksError;
-  
+
+      if (picksError) {
+        console.error('Error updating picks:', picksError);
+        throw picksError;
+      }
+
+      console.log('Update response:', data);
+
       // Update points for winners
       if (pointUpdates.length > 0) {
         for (const userId of pointUpdates) {
