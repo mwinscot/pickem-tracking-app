@@ -82,19 +82,10 @@
     const [message, setMessage] = useState('');
   
     const fetchPendingPicks = useCallback(async () => {
-      console.log('Input date for range:', selectedDate);
-      const dateRange = getDateRange(selectedDate);
-      
-      console.log('Query params:', {
-        dateRange,
-        dateLengths: dateRange.map(d => d.length),
-        query: `.in('game_date', ${JSON.stringify(dateRange)})`
-      });
-      
       const { data, error } = await supabase
         .from('picks')
         .select(`*, users(name)`)
-        .in('game_date', dateRange)
+        .eq('status', 'pending')
         .order('game_date', { ascending: true })
         .order('team');
     
@@ -147,7 +138,6 @@
           game.over_under_picks.push(formattedPick);
         }
       });
-      console.log('Date range:', dateRange);
       console.log('Supabase response:', data);
       console.log('Processed games:', gamesMap);
       console.log('Unique teams:', uniqueTeams);
