@@ -157,12 +157,18 @@
     }, [fetchPendingPicks]);
     
     const handleScoreChange = (team: string, scoreType: 'team' | 'other', value: string) => {
+      console.log('Score change:', { team, scoreType, value });
+      
       setPendingGames(prevGames => {
         const newGames = new Map(prevGames);
         const game = newGames.get(team);
         if (game) {
-          game[`${scoreType}_score`] = value;
-          newGames.set(team, { ...game });
+          const newGame = {
+            ...game,
+            [`${scoreType}_score`]: value
+          };
+          newGames.set(team, newGame);
+          console.log('Updated game:', newGames.get(team));
         }
         return newGames;
       });
