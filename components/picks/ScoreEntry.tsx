@@ -140,7 +140,11 @@
           game.over_under_picks.push(formattedPick);
         }
       });
-    
+      console.log('Date range:', dateRange);
+      console.log('Supabase response:', data);
+      console.log('Processed games:', gamesMap);
+      console.log('Unique teams:', uniqueTeams);
+      
       setPendingGames(gamesMap);
       setUniqueTeams(Array.from(uniqueTeams));
     }, [selectedDate, supabase]);
