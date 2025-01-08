@@ -95,13 +95,17 @@ export default function ScoreEntry() {
   const [localScores, setLocalScores] = useState<Record<string, { team: string, other: string }>>({});
 
   const fetchPendingPicks = useCallback(async () => {
+    // Log current state
+    console.log('Fetching pending picks...');
+    
     const { data, error } = await supabase
       .from('picks')
       .select(`*, users(name)`)
-      .eq('status', 'pending')
-      .order('team')
+      .neq('status', 'completed')  // Changed from eq('status', 'pending')
       .order('game_date', { ascending: true });
-  
+    
+    console.log('Fetch response:', { data, error });
+    
     if (error) {
       console.error('Error fetching picks:', error);
       return;
