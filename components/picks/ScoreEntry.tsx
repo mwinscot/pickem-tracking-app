@@ -236,8 +236,8 @@
               (includes games from {new Date(selectedDate).toLocaleDateString()} ± 1 day)
             </span>
           </h3>
-          {uniqueTeams.length === 0 ? (
-  <div className="text-gray-500">No pending games for this date range.</div>
+          {Object.keys(pendingGames).length === 0 ? (
+  <div className="text-gray-500">No pending picks to score.</div>
 ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 {Object.entries(pendingGames).map(([team, game]) => (                
