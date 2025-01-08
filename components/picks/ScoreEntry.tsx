@@ -25,8 +25,8 @@ interface Pick {
 
 interface TeamGame {
   team: string;
-  team_score: string | number;  // Update type
-  other_score: string | number; // Update type
+  team_score: string;  // Changed to only string type
+  other_score: string; // Changed to only string type
   spread_picks: Pick[];
   over_under_picks: Pick[];
   game_date: string;
@@ -155,21 +155,32 @@ export default function ScoreEntry() {
   }, [pendingGames]);
   
   const handleScoreChange = (team: string, scoreType: 'team' | 'other', value: string) => {
-    setPendingGames(prev => ({
-      ...prev,
-      [team]: {
-        ...prev[team],
-        [`${scoreType}_score`]: value
-      }
-    }));
+    // Only allow numbers and empty string
+    if (value === '' || /^\d+$/.test(value)) {
+      setPendingGames(prev => ({
+        ...prev,
+        [team]: {
+          ...prev[team],
+          [`${scoreType}_score`]: value
+        }
+      }));
+    }
   };
   
   const handleSubmitScore = async (team: string) => {
     const game = pendingGames[team];
     if (!game) return;
   
-    const teamScore = Number(game.team_score);
-    const otherScore = Number(game.other_score);
+    // Convert to numbers only when submitting
+    const teamScore = parseInt(game.team_score, 10);
+    const otherScore = parseInt(game.other_score, 10);
+
+    // Validate scores
+    if (isNaN(teamScore) || isNaN(otherScore)) {
+      setMessage('Please enter valid scores');
+      return;
+    }
+  
     const allPicks = [...game.spread_picks, ...game.over_under_picks];
     
     try {
@@ -261,11 +272,13 @@ export default function ScoreEntry() {
     {team} Score
   </label>
   <input
-    type="number"
+    type="text"
     value={game.team_score}
     onChange={(e) => handleScoreChange(team, 'team', e.target.value)}
     className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
     placeholder="Score"
+    inputMode="numeric"
+    pattern="\d*"
   />
 </div>
 <div>
@@ -273,11 +286,13 @@ export default function ScoreEntry() {
     Other Team Score
   </label>
   <input
-    type="number"
+    type="text"
     value={game.other_score}
     onChange={(e) => handleScoreChange(team, 'other', e.target.value)}
     className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
     placeholder="Score"
+    inputMode="numeric"
+    pattern="\d*"
   />
 </div>
 </div>
