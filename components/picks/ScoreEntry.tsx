@@ -41,8 +41,8 @@ const calculateWinner = (
   const total = teamScore + otherScore;
   const margin = teamScore - otherScore;
 
-  console.log('Calculating winner:', {
-    pick: pick.team,
+  console.log('Calculating winner - Raw inputs:', {
+    team: pick.team,
     teamScore,
     otherScore,
     margin,
@@ -59,13 +59,26 @@ const calculateWinner = (
   } else { // Spread bet
     if (pick.is_favorite) {
       // Favorite needs to win by more than the spread
-      const covered = margin > pick.spread;
-      console.log('Favorite calculation:', { margin, spread: pick.spread, covered });
+      const covered = margin > Math.abs(pick.spread);  // Add Math.abs here
+      console.log('Favorite calculation:', { 
+        margin,
+        spread: pick.spread,
+        absSpread: Math.abs(pick.spread),
+        covered,
+        explanation: `${pick.team} ${covered ? 'covered' : 'did not cover'} because they ${covered ? 'won by more' : 'did not win by more'} than ${Math.abs(pick.spread)} points`
+      });
       return covered;
     } else {
       // Underdog needs to lose by less than the spread (or win outright)
-      const covered = margin + pick.spread > 0;
-      console.log('Underdog calculation:', { margin, spread: pick.spread, adjusted_margin: margin + pick.spread, covered });
+      const covered = margin + Math.abs(pick.spread) > 0;  // Add Math.abs here
+      console.log('Underdog calculation:', { 
+        margin,
+        spread: pick.spread,
+        absSpread: Math.abs(pick.spread),
+        adjustedMargin: margin + Math.abs(pick.spread),
+        covered,
+        explanation: `${pick.team} ${covered ? 'covered' : 'did not cover'} because they ${covered ? 'stayed within' : 'lost by more than'} ${Math.abs(pick.spread)} points`
+      });
       return covered;
     }
   }
@@ -214,16 +227,33 @@ export default function ScoreEntry() {
     try {
       // Start transaction
       const updates = [];
-      const pointUpdates = [];
-  
+      const userPointsMap = new Map<string, { userId: string, currentPoints: number }>();
+
+      // First get current points for all users involved
+      for (const pick of allPicks) {
+        if (!userPointsMap.has(pick.user_id)) {
+          const { data: userData, error: userError } = await supabase
+            .from('users')
+            .select('points')
+            .eq('id', pick.user_id)
+            .single();
+
+          if (!userError && userData) {
+            userPointsMap.set(pick.user_id, {
+              userId: pick.user_id,
+              currentPoints: userData.points || 0
+            });
+          }
+        }
+      }
+
       // Prepare all updates
       for (const pick of allPicks) {
         const isWinner = calculateWinner(pick, teamScore, otherScore);
         
-        // Add pick status update with user_id
         updates.push({
           id: pick.id,
-          user_id: pick.user_id,  // Make sure to include user_id
+          user_id: pick.user_id,
           team: pick.team,
           spread: pick.spread,
           over_under: pick.over_under,
@@ -234,51 +264,44 @@ export default function ScoreEntry() {
           game_date: pick.game_date
         });
 
-        // Log the update for verification
-        console.log('Updating pick:', {
-          id: pick.id,
+        // Log the update
+        console.log('Pick update:', {
           team: pick.team,
-          status: 'completed',
-          winner: isWinner
+          user: pick.users?.name,
+          isWinner,
+          currentPoints: userPointsMap.get(pick.user_id)?.currentPoints
         });
-
-        if (isWinner) {
-          pointUpdates.push(pick.user_id);
-        }
       }
 
-      // Execute pick updates with better error logging
-      const { data, error: picksError } = await supabase
+      // Update picks first
+      const { error: picksError } = await supabase
         .from('picks')
-        .upsert(updates, { 
-          onConflict: 'id'
-        });
+        .upsert(updates, { onConflict: 'id' });
 
-      if (picksError) {
-        console.error('Error updating picks:', picksError);
-        throw picksError;
-      }
+      if (picksError) throw picksError;
 
-      console.log('Update response:', data);
+      // Now update points for each user based on winners
+      const pointPromises = Array.from(userPointsMap.values()).map(async ({ userId }) => {
+        // Count total winners for this user
+        const { data: winData, error: winError } = await supabase
+          .from('picks')
+          .select('winner')
+          .eq('user_id', userId)
+          .eq('winner', true);
 
-      // Update points for winners
-      if (pointUpdates.length > 0) {
-        for (const userId of pointUpdates) {
-          const { data: userData, error: userError } = await supabase
-            .from('users')
-            .select('points')
-            .eq('id', userId)
-            .single();
-  
-          if (!userError && userData) {
-            await supabase
-              .from('users')
-              .update({ points: (userData.points || 0) + 1 })
-              .eq('id', userId);
-          }
-        }
-      }
-  
+        if (winError) throw winError;
+
+        const totalWins = winData?.length || 0;
+
+        // Update user's points to match their total winners
+        return supabase
+          .from('users')
+          .update({ points: totalWins })
+          .eq('id', userId);
+      });
+
+      await Promise.all(pointPromises);
+
       setMessage(`Scores updated successfully for ${team}!`);
       
       // Clear local states
