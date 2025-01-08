@@ -252,31 +252,31 @@
                   </div>
                   
                   <div className="grid grid-cols-2 gap-4 mb-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">
-                        {team} Score
-                      </label>
-                      <input
-  type="number"
-  value={game.other_score || ''}
-  onChange={(e) => handleScoreChange(team, 'other', e.target.value)}
-  className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
-  placeholder="Score"
-/>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">
-                        Other Team Score
-                      </label>
-                      <input
-  type="number"
-  value={game.other_score || ''}
-  onChange={(e) => handleScoreChange(team, 'other', e.target.value)}
-  className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
-  placeholder="Score"
-/>
-                    </div>
-                  </div>
+  <div>
+    <label className="block text-sm font-medium text-gray-700">
+      {team} Score
+    </label>
+    <input
+      type="number"
+      value={game.team_score || ''}
+      onChange={(e) => handleScoreChange(team, 'team', e.target.value)}
+      className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
+      placeholder="Score"
+    />
+  </div>
+  <div>
+    <label className="block text-sm font-medium text-gray-700">
+      Other Team Score
+    </label>
+    <input
+      type="number"
+      value={game.other_score || ''}
+      onChange={(e) => handleScoreChange(team, 'other', e.target.value)}
+      className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
+      placeholder="Score"
+    />
+  </div>
+</div>
 
                   {game.spread_picks.length > 0 && (
                     <div className="mb-4">
