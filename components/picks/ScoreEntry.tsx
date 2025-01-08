@@ -213,27 +213,9 @@ export default function ScoreEntry() {
     const allPicks = [...game.spread_picks, ...game.over_under_picks];
     
     try {
+      // Process all picks first
       const updatesToSend = allPicks.map(pick => {
         const isWinner = calculateWinner(pick, teamScore, otherScore);
-  
-        if (isWinner) {
-          const updateUserPoints = async () => {
-            const { data: userData, error: userError } = await supabase
-              .from('users')
-              .select('points')
-              .eq('id', pick.user_id)
-              .single();
-  
-            if (!userError && userData) {
-              await supabase
-                .from('users')
-                .update({ points: (userData.points || 0) + 1 })
-                .eq('id', pick.user_id);
-            }
-          };
-          updateUserPoints();
-        }
-  
         return {
           id: pick.id,
           user_id: pick.user_id,
@@ -248,28 +230,48 @@ export default function ScoreEntry() {
         };
       });
   
-      const { error } = await supabase
+      // Update all picks first
+      const { error: picksError } = await supabase
         .from('picks')
         .upsert(updatesToSend);
   
-      if (error) throw error;
+      if (picksError) throw picksError;
+  
+      // Then update user points for winners
+      const winningPicks = updatesToSend.filter(pick => pick.winner);
+      for (const pick of winningPicks) {
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('points')
+          .eq('id', pick.user_id)
+          .single();
+  
+        if (!userError && userData) {
+          await supabase
+            .from('users')
+            .update({ points: (userData.points || 0) + 1 })
+            .eq('id', pick.user_id);
+        }
+      }
   
       setMessage(`Scores updated successfully for ${team}!`);
       
-      // Clear local scores for this team
+      // Remove scored game from both states
       setLocalScores(prev => {
         const newScores = { ...prev };
         delete newScores[team];
         return newScores;
       });
       
-      // Remove from pending games
       setPendingGames(prev => {
         const newGames = { ...prev };
         delete newGames[team];
         return newGames;
       });
-      
+  
+      // Refresh the pending picks to ensure state is in sync with database
+      await fetchPendingPicks();
+  
     } catch (err: any) {
       console.error('Error updating scores:', err);
       setMessage(`Error updating scores: ${err.message}`);
