@@ -77,8 +77,8 @@
     const supabase = createClient(supabaseUrl, supabaseAnonKey);
   
     const [selectedDate, setSelectedDate] = useState(toPSTDate(new Date().toISOString().split('T')[0]));
-    const [pendingGames, setPendingGames] = useState<Map<string, TeamGame>>(new Map());
-    const [uniqueTeams, setUniqueTeams] = useState<Set<string>>(new Set());
+    const [pendingGames, setPendingGames] = useState<Record<string, TeamGame>>({});
+    const [uniqueTeams, setUniqueTeams] = useState<string[]>([]);
     const [message, setMessage] = useState('');
   
     const fetchPendingPicks = useCallback(async () => {
@@ -86,109 +86,87 @@
       
       const { data, error } = await supabase
         .from('picks')
-        .select(`
-          *,
-          users (
-            name
-          )
-        `)
+        .select(`*, users(name)`)
         .in('game_date', dateRange)
         .order('game_date', { ascending: true })
         .order('team');
-  
+    
       if (error) {
         console.error('Error fetching picks:', error);
         return;
       }
-  
+    
       if (!data || data.length === 0) {
-        setPendingGames(new Map());
-        setUniqueTeams(new Set());
+        setPendingGames({});
+        setUniqueTeams([]);
         return;
       }
-  
-      const gamesMap = new Map<string, TeamGame>();
-      const teams = new Set<string>();
+    
+      const gamesMap: Record<string, TeamGame> = {};
+      const uniqueTeams = new Set<string>();
       
       data.forEach(pick => {
-        teams.add(pick.team);
+        uniqueTeams.add(pick.team);
         
-        if (!gamesMap.has(pick.team)) {
-          gamesMap.set(pick.team, {
+        if (!gamesMap[pick.team]) {
+          gamesMap[pick.team] = {
             team: pick.team,
             team_score: '',
             other_score: '',
             spread_picks: [],
             over_under_picks: [],
             game_date: pick.game_date
-          });
-        }
-  
-        const game = gamesMap.get(pick.team);
-        if (game) {
-          const betType = pick.over_under > 0 ? 'over_under' : 'spread';
-          const formattedPick = {
-            ...pick,
-            bet_type: betType,
-            formatted_pick: formatPick({
-              team: pick.team,
-              spread: betType === 'spread' ? pick.spread : 0,
-              over_under: betType === 'over_under' ? pick.over_under : 0,
-              is_favorite: betType === 'spread' ? pick.is_favorite : false,
-              is_over: betType === 'over_under' ? pick.is_over : false,
-              pick_type: betType
-            })
           };
-  
-          if (betType === 'spread') {
-            game.spread_picks.push(formattedPick);
-          } else {
-            game.over_under_picks.push(formattedPick);
-          }
+        }
+    
+        const game = gamesMap[pick.team];
+        const betType = pick.over_under > 0 ? 'over_under' : 'spread';
+        const formattedPick = {
+          ...pick,
+          bet_type: betType,
+          formatted_pick: formatPick({
+            team: pick.team,
+            spread: betType === 'spread' ? pick.spread : 0,
+            over_under: betType === 'over_under' ? pick.over_under : 0,
+            is_favorite: betType === 'spread' ? pick.is_favorite : false,
+            is_over: betType === 'over_under' ? pick.is_over : false,
+            pick_type: betType
+          })
+        };
+    
+        if (betType === 'spread') {
+          game.spread_picks.push(formattedPick);
+        } else {
+          game.over_under_picks.push(formattedPick);
         }
       });
-  
+    
       setPendingGames(gamesMap);
-      setUniqueTeams(teams);
+      setUniqueTeams(Array.from(uniqueTeams));
     }, [selectedDate, supabase]);
-  
-    useEffect(() => {
-      fetchPendingPicks();
-    }, [fetchPendingPicks]);
     
     const handleScoreChange = (team: string, scoreType: 'team' | 'other', value: string) => {
-      setPendingGames(prevGames => {
-        const gamesCopy = new Map(prevGames);
-        const game = gamesCopy.get(team);
-        if (game) {
-          gamesCopy.set(team, {
-            ...game,
-            [`${scoreType}_score`]: value
-          });
+      setPendingGames(prev => ({
+        ...prev,
+        [team]: {
+          ...prev[team],
+          [`${scoreType}_score`]: value
         }
-        return gamesCopy;
-      });
-      
-      // Verify state update
-      requestAnimationFrame(() => {
-        console.log('State after update:', pendingGames.get(team));
-      });
+      }));
     };
-
+    
     const handleSubmitScore = async (team: string) => {
-      const game = pendingGames.get(team);
+      const game = pendingGames[team];
       if (!game) return;
-
+    
       const teamScore = Number(game.team_score);
       const otherScore = Number(game.other_score);
       const allPicks = [...game.spread_picks, ...game.over_under_picks];
       
       try {
         const updatesToSend = allPicks.map(pick => {
-          // Use the helper function to determine winner
           const isWinner = calculateWinner(pick, teamScore, otherScore);
     
-          // Update user points if pick is a winner
           if (isWinner) {
             const updateUserPoints = async () => {
               const { data: userData, error: userError } = await supabase
@@ -207,8 +185,7 @@
             updateUserPoints();
           }
     
-          // Only include database fields, remove display-only fields
-          const dbUpdate = {
+          return {
             id: pick.id,
             user_id: pick.user_id,
             team: pick.team,
@@ -220,8 +197,6 @@
             winner: isWinner,
             game_date: pick.game_date
           };
-    
-          return dbUpdate;
         });
     
         const { error } = await supabase
@@ -231,9 +206,9 @@
         if (error) throw error;
     
         setMessage(`Scores updated successfully for ${team}!`);
-        setPendingGames(prevGames => {
-          const newGames = new Map(prevGames);
-          newGames.delete(team);
+        setPendingGames(prev => {
+          const newGames = {...prev};
+          delete newGames[team];
           return newGames;
         });
         await fetchPendingPicks();
@@ -270,12 +245,12 @@
               (includes games from {new Date(selectedDate).toLocaleDateString()} ± 1 day)
             </span>
           </h3>
-          {uniqueTeams.size === 0 ? (
-            <div className="text-gray-500">No pending games for this date range.</div>
-          ) : (
+          {uniqueTeams.length === 0 ? (
+  <div className="text-gray-500">No pending games for this date range.</div>
+) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {Array.from(pendingGames.entries()).map(([team, game]) => (
-                <div key={team} className="bg-white shadow rounded-lg p-4">
+{Object.entries(pendingGames).map(([team, game]) => (                
+  <div key={team} className="bg-white shadow rounded-lg p-4">
                   <h4 className="font-bold text-lg text-gray-900 mb-2">{team}</h4>
                   <div className="text-sm text-gray-600 mb-4">
                     Game Date: {new Date(game.game_date).toLocaleDateString()}
