@@ -80,6 +80,7 @@ export default function ScoreEntry() {
   const [pendingGames, setPendingGames] = useState<Record<string, TeamGame>>({});
   const [uniqueTeams, setUniqueTeams] = useState<string[]>([]);
   const [message, setMessage] = useState('');
+  const [localScores, setLocalScores] = useState<Record<string, { team: string, other: string }>>({});
 
   const fetchPendingPicks = useCallback(async () => {
     const { data, error } = await supabase
@@ -153,34 +154,38 @@ export default function ScoreEntry() {
   useEffect(() => {
     console.log('Pending games state updated:', pendingGames);
   }, [pendingGames]);
+
+  useEffect(() => {
+    const initialScores: Record<string, { team: string, other: string }> = {};
+    Object.keys(pendingGames).forEach(team => {
+      initialScores[team] = {
+        team: pendingGames[team].team_score || '',
+        other: pendingGames[team].other_score || ''
+      };
+    });
+    setLocalScores(initialScores);
+  }, []);
   
   const handleScoreChange = (team: string, scoreType: 'team' | 'other', value: string) => {
-    // Log the initial event
-    console.log('=== Score Change Event ===');
-    console.log('Input received:', { team, scoreType, value });
-    console.log('Current game state:', pendingGames[team]);
+    console.log('Score change:', { team, scoreType, value });
 
-    setPendingGames(prevGames => {
-      console.log('Setting state - Previous games:', prevGames);
-      
-      const gameToUpdate = { ...prevGames[team] };
-      console.log('Game to update:', gameToUpdate);
-      
-      const updatedGame = {
-        ...gameToUpdate,
+    // Update local scores
+    setLocalScores(prev => ({
+      ...prev,
+      [team]: {
+        ...(prev[team] || { team: '', other: '' }),
+        [scoreType]: value
+      }
+    }));
+
+    // Update pending games
+    setPendingGames(prev => ({
+      ...prev,
+      [team]: {
+        ...prev[team],
         [`${scoreType}_score`]: value
-      };
-      
-      console.log('Updated game object:', updatedGame);
-      
-      const newState = {
-        ...prevGames,
-        [team]: updatedGame
-      };
-      
-      console.log('New complete state:', newState);
-      return newState;
-    });
+      }
+    }));
   };
 
   // Add an effect to log state changes
@@ -296,9 +301,9 @@ export default function ScoreEntry() {
                     </label>
                     <input
                       type="text"
-                      value={game.team_score || ''}
+                      value={(localScores[team]?.team || '')}
                       onChange={(e) => handleScoreChange(team, 'team', e.target.value)}
-                      onFocus={(e) => console.log('Input focused:', { team, type: 'team', currentValue: e.target.value })}
+                      onFocus={(e) => console.log('Input focused:', { team, type: 'team', currentValue: e.target.value, localValue: localScores[team]?.team })}
                       className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
                     />
                   </div>
@@ -308,9 +313,9 @@ export default function ScoreEntry() {
                     </label>
                     <input
                       type="text"
-                      value={game.other_score || ''}
+                      value={(localScores[team]?.other || '')}
                       onChange={(e) => handleScoreChange(team, 'other', e.target.value)}
-                      onFocus={(e) => console.log('Input focused:', { team, type: 'other', currentValue: e.target.value })}
+                      onFocus={(e) => console.log('Input focused:', { team, type: 'other', currentValue: e.target.value, localValue: localScores[team]?.other })}
                       className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
                     />
                   </div>
