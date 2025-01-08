@@ -316,7 +316,6 @@ export default function ScoreEntry() {
                     </div>
                   </div>
                 )}
-
                 {game.over_under_picks.length > 0 && (
                   <div className="mb-4">
                     <h5 className="font-medium text-gray-700 mb-2">Over/Under Picks:</h5>
