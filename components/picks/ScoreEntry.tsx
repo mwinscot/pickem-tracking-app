@@ -338,10 +338,7 @@ export default function ScoreEntry() {
 
       <div className="mt-8">
         <h3 className="text-lg font-semibold mb-4">
-          Pending Games for {new Date(selectedDate).toLocaleDateString()} 
-          <span className="text-sm font-normal text-gray-600 ml-2">
-            (includes games from {new Date(selectedDate).toLocaleDateString()} ± 1 day)
-          </span>
+          Pending Games
         </h3>
         
         {Object.keys(pendingGames).length === 0 ? (
