@@ -155,15 +155,23 @@ export default function ScoreEntry() {
   }, [pendingGames]);
   
   const handleScoreChange = (team: string, scoreType: 'team' | 'other', value: string) => {
-    // Only allow numbers and empty string
+    console.log('Score change:', { team, scoreType, value });
+    // Prevent default behavior
+    event?.preventDefault();
+    
+    // Allow empty string or numbers only
     if (value === '' || /^\d+$/.test(value)) {
-      setPendingGames(prev => ({
-        ...prev,
-        [team]: {
-          ...prev[team],
-          [`${scoreType}_score`]: value
-        }
-      }));
+      setPendingGames(prev => {
+        const updatedGames = {
+          ...prev,
+          [team]: {
+            ...prev[team],
+            [`${scoreType}_score`]: value
+          }
+        };
+        console.log('Updated games state:', updatedGames);
+        return updatedGames;
+      });
     }
   };
   
@@ -276,9 +284,10 @@ export default function ScoreEntry() {
     value={game.team_score}
     onChange={(e) => handleScoreChange(team, 'team', e.target.value)}
     className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
-    placeholder="Score"
     inputMode="numeric"
     pattern="\d*"
+    min="0"
+    max="999"
   />
 </div>
 <div>
@@ -290,9 +299,10 @@ export default function ScoreEntry() {
     value={game.other_score}
     onChange={(e) => handleScoreChange(team, 'other', e.target.value)}
     className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
-    placeholder="Score"
     inputMode="numeric"
     pattern="\d*"
+    min="0"
+    max="999"
   />
 </div>
 </div>
