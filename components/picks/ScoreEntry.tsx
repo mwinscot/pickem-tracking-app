@@ -196,12 +196,14 @@ export default function ScoreEntry() {
   
   const handleSubmitScore = async (team: string) => {
     const game = pendingGames[team];
-    if (!game) return;
+    const scores = localScores[team];
+    
+    if (!game || !scores) return;
   
     // Convert to numbers only when submitting
-    const teamScore = parseInt(game.team_score, 10);
-    const otherScore = parseInt(game.other_score, 10);
-
+    const teamScore = parseInt(scores.team, 10);
+    const otherScore = parseInt(scores.other, 10);
+  
     // Validate scores
     if (isNaN(teamScore) || isNaN(otherScore)) {
       setMessage('Please enter valid scores');
@@ -253,12 +255,21 @@ export default function ScoreEntry() {
       if (error) throw error;
   
       setMessage(`Scores updated successfully for ${team}!`);
+      
+      // Clear local scores for this team
+      setLocalScores(prev => {
+        const newScores = { ...prev };
+        delete newScores[team];
+        return newScores;
+      });
+      
+      // Remove from pending games
       setPendingGames(prev => {
-        const newGames = {...prev};
+        const newGames = { ...prev };
         delete newGames[team];
         return newGames;
       });
-      await fetchPendingPicks();
+      
     } catch (err: any) {
       console.error('Error updating scores:', err);
       setMessage(`Error updating scores: ${err.message}`);
@@ -348,7 +359,7 @@ export default function ScoreEntry() {
 
                 <button
                   onClick={() => handleSubmitScore(team)}
-                  disabled={!game.team_score || !game.other_score}
+                  disabled={!localScores[team]?.team || !localScores[team]?.other}
                   className="w-full bg-green-500 text-white p-2 rounded hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
                 >
                   Update Score
