@@ -25,8 +25,8 @@
 
   interface TeamGame {
     team: string;
-    team_score: string;
-    other_score: string;
+    team_score: string | number;  // Update type
+    other_score: string | number; // Update type
     spread_picks: Pick[];
     over_under_picks: Pick[];
     game_date: string;
@@ -157,20 +157,17 @@
     }, [fetchPendingPicks]);
     
     const handleScoreChange = (team: string, scoreType: 'team' | 'other', value: string) => {
-      console.log('Before update:', pendingGames.get(team));
       setPendingGames(prevGames => {
-        const newGames = new Map(prevGames);
-        const currentGame = newGames.get(team);
-        if (!currentGame) return prevGames;
-        
-        newGames.set(team, {
-          ...currentGame,
-          [`${scoreType}_score`]: value
-        });
-        
-        return newGames;
+        const gamesCopy = new Map(prevGames);
+        const game = gamesCopy.get(team);
+        if (game) {
+          const updatedGame = {...game};
+          updatedGame[`${scoreType}_score`] = value;
+          gamesCopy.set(team, updatedGame);
+          console.log('Updated game in setter:', updatedGame);
+        }
+        return gamesCopy;
       });
-      console.log('After update attempt:', pendingGames.get(team));
     };
 
     const handleSubmitScore = async (team: string) => {
