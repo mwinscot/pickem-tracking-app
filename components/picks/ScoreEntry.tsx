@@ -204,7 +204,6 @@ export default function ScoreEntry() {
     const teamScore = parseInt(scores.team, 10);
     const otherScore = parseInt(scores.other, 10);
   
-    // Validate scores
     if (isNaN(teamScore) || isNaN(otherScore)) {
       setMessage('Please enter valid scores');
       return;
@@ -213,50 +212,64 @@ export default function ScoreEntry() {
     const allPicks = [...game.spread_picks, ...game.over_under_picks];
     
     try {
-      // Process all picks first
-      const updatesToSend = allPicks.map(pick => {
+      // Start transaction
+      const updates = [];
+      const pointUpdates = [];
+  
+      // Prepare all updates
+      for (const pick of allPicks) {
         const isWinner = calculateWinner(pick, teamScore, otherScore);
-        return {
+        
+        // Add pick status update
+        updates.push({
           id: pick.id,
-          user_id: pick.user_id,
           team: pick.team,
           spread: pick.spread,
           over_under: pick.over_under,
           is_favorite: pick.is_favorite,
           is_over: pick.is_over,
-          status: 'completed' as const,
+          status: 'completed',
           winner: isWinner,
           game_date: pick.game_date
-        };
-      });
+        });
   
-      // Update all picks first
+        // If winner, prepare points update
+        if (isWinner) {
+          pointUpdates.push(pick.user_id);
+        }
+      }
+  
+      // Execute pick updates first
       const { error: picksError } = await supabase
         .from('picks')
-        .upsert(updatesToSend);
+        .upsert(updates, { 
+          onConflict: 'id',
+          ignoreDuplicates: false
+        });
   
       if (picksError) throw picksError;
   
-      // Then update user points for winners
-      const winningPicks = updatesToSend.filter(pick => pick.winner);
-      for (const pick of winningPicks) {
-        const { data: userData, error: userError } = await supabase
-          .from('users')
-          .select('points')
-          .eq('id', pick.user_id)
-          .single();
-  
-        if (!userError && userData) {
-          await supabase
+      // Update points for winners
+      if (pointUpdates.length > 0) {
+        for (const userId of pointUpdates) {
+          const { data: userData, error: userError } = await supabase
             .from('users')
-            .update({ points: (userData.points || 0) + 1 })
-            .eq('id', pick.user_id);
+            .select('points')
+            .eq('id', userId)
+            .single();
+  
+          if (!userError && userData) {
+            await supabase
+              .from('users')
+              .update({ points: (userData.points || 0) + 1 })
+              .eq('id', userId);
+          }
         }
       }
   
       setMessage(`Scores updated successfully for ${team}!`);
       
-      // Remove scored game from both states
+      // Clear local states
       setLocalScores(prev => {
         const newScores = { ...prev };
         delete newScores[team];
@@ -269,7 +282,7 @@ export default function ScoreEntry() {
         return newGames;
       });
   
-      // Refresh the pending picks to ensure state is in sync with database
+      // Refresh picks to ensure sync
       await fetchPendingPicks();
   
     } catch (err: any) {
