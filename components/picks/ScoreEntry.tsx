@@ -161,12 +161,17 @@
         const gamesCopy = new Map(prevGames);
         const game = gamesCopy.get(team);
         if (game) {
-          const updatedGame = {...game};
-          updatedGame[`${scoreType}_score`] = value;
-          gamesCopy.set(team, updatedGame);
-          console.log('Updated game in setter:', updatedGame);
+          gamesCopy.set(team, {
+            ...game,
+            [`${scoreType}_score`]: value
+          });
         }
         return gamesCopy;
+      });
+      
+      // Verify state update
+      requestAnimationFrame(() => {
+        console.log('State after update:', pendingGames.get(team));
       });
     };
 
@@ -282,12 +287,17 @@
                         {team} Score
                       </label>
                       <input
-                        type="number"
-                        value={game.team_score}
-                        onChange={(e) => handleScoreChange(team, 'team', e.target.value)}
-                        className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
-                        placeholder="Score"
-                      />
+  type="number"
+  value={game.team_score}
+  onChange={(e) => {
+    const value = e.target.value;
+    handleScoreChange(team, 'team', value);
+    console.log('Input event value:', value);
+  }}
+  onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+  className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
+  placeholder="Score"
+/>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700">
