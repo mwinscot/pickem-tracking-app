@@ -157,18 +157,32 @@ export default function ScoreEntry() {
   const handleScoreChange = (team: string, scoreType: 'team' | 'other', value: string) => {
     console.log('handleScoreChange called:', { team, scoreType, value });
 
-    setPendingGames(prevGames => {
-      if (!prevGames[team]) return prevGames;
+    // Don't allow non-numeric values
+    if (value !== '' && !/^\d+$/.test(value)) {
+      return;
+    }
 
-      const updatedGames = {
+    setPendingGames(prevGames => {
+      // Create a deep copy of the game object
+      const gameToUpdate = { ...prevGames[team] };
+      
+      // Update the score
+      if (scoreType === 'team') {
+        gameToUpdate.team_score = value;
+      } else {
+        gameToUpdate.other_score = value;
+      }
+
+      // Create new state object
+      const newState = {
         ...prevGames,
-        [team]: {
-          ...prevGames[team],
-          [`${scoreType}_score`]: value
-        }
+        [team]: gameToUpdate
       };
-      console.log('New state:', updatedGames[team]);
-      return updatedGames;
+
+      console.log('Previous state:', prevGames[team]);
+      console.log('Updated state:', newState[team]);
+      
+      return newState;
     });
   };
   
@@ -273,31 +287,29 @@ export default function ScoreEntry() {
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4 mb-4">
-  <div>
-    <label className="block text-sm font-medium text-gray-700">
-      {team} Score
-    </label>
-    <input
-      type="text"
-      inputMode="numeric"
-      value={game.team_score}
-      onChange={(e) => handleScoreChange(team, 'team', e.target.value)}
-      className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
-    />
-  </div>
-  <div>
-    <label className="block text-sm font-medium text-gray-700">
-      Other Team Score
-    </label>
-    <input
-      type="text"
-      inputMode="numeric"
-      value={game.other_score}
-      onChange={(e) => handleScoreChange(team, 'other', e.target.value)}
-      className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
-    />
-  </div>
-</div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      {team} Score
+                    </label>
+                    <input
+                      type="text"
+                      value={game.team_score || ''}
+                      onChange={(e) => handleScoreChange(team, 'team', e.target.value)}
+                      className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Other Team Score
+                    </label>
+                    <input
+                      type="text"
+                      value={game.other_score || ''}
+                      onChange={(e) => handleScoreChange(team, 'other', e.target.value)}
+                      className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
+                    />
+                  </div>
+                </div>
 
                 {game.spread_picks.length > 0 && (
                   <div className="mb-4">
