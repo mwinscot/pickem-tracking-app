@@ -404,25 +404,21 @@ export default function PickEntry() {
           {Object.keys(lastWeekPicks).length === 0 ? (
             <div className="text-gray-500">No picks from last week.</div>
           ) : (
-            <div className="space-y-6">
+            <div className="space-y-4">
               {Object.entries(lastWeekPicks).map(([userName, picks]) => (
-                <div key={userName} className="bg-gray-50 rounded-lg p-4">
-                  <h4 className="font-medium mb-3">{userName}</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <div key={userName} className="p-4 bg-gray-50 rounded-md">
+                  <h4 className="font-medium mb-2">{userName}</h4>
+                  <div className="space-y-2">
                     {picks.map((pick) => (
-                      <div 
-                        key={pick.id} 
-                        className={`p-2 rounded ${
-                          pick.winner 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-red-100 text-red-800'
-                        }`}
-                      >
-                        <div className="flex justify-between">
-                          <span>{pick.formatted_pick}</span>
-                          <span className="text-sm">
-                            {formatPSTDisplay(pick.game_date)}
+                      <div key={pick.id} className="flex justify-between items-center text-sm">
+                        <div>
+                          {pick.formatted_pick}
+                          <span className={`ml-2 ${pick.winner ? 'text-green-600' : 'text-red-600'}`}>
+                            ({pick.winner ? 'Win' : 'Loss'})
                           </span>
+                        </div>
+                        <div className="text-gray-500">
+                          {formatPSTDisplay(pick.game_date)}
                         </div>
                       </div>
                     ))}
