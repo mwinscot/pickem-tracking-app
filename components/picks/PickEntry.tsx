@@ -228,7 +228,7 @@ export default function PickEntry() {
 
     const parsedPick = parsePick(pickInput);
     if (!parsedPick) {
-      setError('Invalid pick format. Examples: "Arizona +4" or "Arizona O150"');
+      setError('Invalid pick format. Examples: &quot;Arizona +4&quot; or &quot;Arizona O150&quot;');
       return;
     }
 
