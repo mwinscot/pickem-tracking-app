@@ -93,7 +93,7 @@ export default function PickEntry() {
 
   const fetchPendingPicks = useCallback(async () => {
     try {
-      const dateRange = getDateRange(gameDate); // Use this instead of creating new dates
+      const dateRange = getDateRange(gameDate); //  Use this instead of creating new dates
       console.log('Fetching with dates:', dateRange);
       
       const { data, error } = await supabase
