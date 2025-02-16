@@ -59,11 +59,10 @@ export default function PickEntry() {
   }>({ pending: [], scoredByUser: {} });
   const [lastWeekPicks, setLastWeekPicks] = useState<{[key: string]: Pick[]}>({});
 
-  const groupPicksByStatus = (picks: Pick[]) => {
-    console.log('All picks:', picks); // Add this
+  const groupPicksByStatus = useCallback((picks: Pick[]) => {
+    console.log('All picks:', picks);
     const pending = picks.filter(p => p.status === 'pending');
     const scored = picks.filter(p => p.status === 'completed');
-    console.log('Scored picks:', scored); // Add this
     
     const scoredByUser = scored.reduce((acc, pick) => {
       const userName = pick.users?.name || 'Unknown User';
@@ -74,9 +73,8 @@ export default function PickEntry() {
       return acc;
     }, {} as Record<string, Pick[]>);
   
-    console.log('Scored by user:', scoredByUser); // Add this
     return { pending, scoredByUser };
-  };
+  }, []);
 
   const fetchUsers = useCallback(async () => {
     const { data, error } = await supabase
@@ -167,7 +165,7 @@ export default function PickEntry() {
     fetchUsers();
     fetchPendingPicks();
     fetchLastWeekPicks();
-  }, [fetchPendingPicks, fetchLastWeekPicks]);
+  }, [fetchPendingPicks, fetchLastWeekPicks, fetchUsers]);
 
   const createPickData = (parsedPick: ParsedPick): Pick => {
     const pstGameDate = toPSTDate(gameDate);
@@ -315,7 +313,7 @@ export default function PickEntry() {
             type="text"
             value={pickInput}
             onChange={(e) => setPickInput(e.target.value)}
-            placeholder='Example: "Arizona +4" or "Arizona O150"'
+            placeholder="Example: &quot;Arizona +4&quot; or &quot;Arizona O150&quot;"
             className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm"
           />
         </div>

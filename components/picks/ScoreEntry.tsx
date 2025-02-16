@@ -156,7 +156,7 @@ export default function ScoreEntry() {
       };
     });
     setLocalScores(initialScores);
-  }, []);
+  }, [pendingGames]);
   
   const handleScoreChange = (team: string, scoreType: 'team' | 'other', value: string) => {
     console.log('Score change:', { team, scoreType, value });
