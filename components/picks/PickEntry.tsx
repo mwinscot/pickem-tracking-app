@@ -411,12 +411,10 @@ export default function PickEntry() {
                   <div className="space-y-2">
                     {picks.map((pick) => (
                       <div key={pick.id} className="flex justify-between items-center text-sm">
-                        <div>
-                          <span className={pick.winner ? 'text-green-600' : 'text-red-600'}>
-                            {pick.formatted_pick}
-                            <span className="ml-2">
-                              ({pick.winner ? 'Win' : 'Loss'})
-                            </span>
+                        <div className={pick.winner ? 'text-green-600' : 'text-red-600'}>
+                          {pick.formatted_pick}
+                          <span className="ml-2">
+                            ({pick.winner ? 'Win' : 'Loss'})
                           </span>
                         </div>
                         <div className="text-gray-500">
