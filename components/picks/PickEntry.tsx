@@ -400,7 +400,7 @@ export default function PickEntry() {
 
         {/* Last Week's Picks Section */}
         <div className="mt-8">
-          <h3 className="text-lg font-semibold mb-4">Last Week's Results</h3>
+          <h3 className="text-lg font-semibold mb-4">Last Week&apos;s Results</h3>
           {Object.keys(lastWeekPicks).length === 0 ? (
             <div className="text-gray-500">No picks from last week.</div>
           ) : (
