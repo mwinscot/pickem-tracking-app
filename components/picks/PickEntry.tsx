@@ -57,6 +57,7 @@ export default function PickEntry() {
     pending: Pick[];
     scoredByUser: Record<string, Pick[]>;
   }>({ pending: [], scoredByUser: {} });
+  const [lastWeekPicks, setLastWeekPicks] = useState<{[key: string]: Pick[]}>({});
 
   const groupPicksByStatus = (picks: Pick[]) => {
     console.log('All picks:', picks); // Add this
@@ -124,10 +125,49 @@ export default function PickEntry() {
     }
   }, [gameDate, supabase, groupPicksByStatus]);
 
+  const fetchLastWeekPicks = useCallback(async () => {
+    const today = new Date();
+    const oneWeekAgo = new Date(today);
+    oneWeekAgo.setDate(today.getDate() - 7);
+    
+    const { data, error } = await supabase
+      .from('picks')
+      .select('*, users(name)')
+      .eq('status', 'completed')
+      .gte('game_date', oneWeekAgo.toISOString())
+      .lt('game_date', today.toISOString())
+      .order('game_date', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching last week picks:', error);
+      return;
+    }
+
+    const groupedByUser = (data || []).reduce((acc: {[key: string]: Pick[]}, pick) => {
+      const userName = pick.users?.name || 'Unknown User';
+      if (!acc[userName]) acc[userName] = [];
+      acc[userName].push({
+        ...pick,
+        formatted_pick: formatPick({
+          team: pick.team,
+          spread: pick.spread,
+          over_under: pick.over_under,
+          is_favorite: pick.is_favorite,
+          is_over: pick.is_over,
+          pick_type: pick.over_under > 0 ? 'over_under' : 'spread'
+        })
+      });
+      return acc;
+    }, {});
+
+    setLastWeekPicks(groupedByUser);
+  }, [supabase]);
+
   useEffect(() => {
     fetchUsers();
     fetchPendingPicks();
-  }, [fetchPendingPicks]);
+    fetchLastWeekPicks();
+  }, [fetchPendingPicks, fetchLastWeekPicks]);
 
   const createPickData = (parsedPick: ParsedPick): Pick => {
     const pstGameDate = toPSTDate(gameDate);
@@ -350,6 +390,41 @@ export default function PickEntry() {
                         </div>
                         <div className="text-gray-500">
                           {formatPSTDisplay(pick.game_date)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Last Week's Picks Section */}
+        <div className="mt-8">
+          <h3 className="text-lg font-semibold mb-4">Last Week's Results</h3>
+          {Object.keys(lastWeekPicks).length === 0 ? (
+            <div className="text-gray-500">No picks from last week.</div>
+          ) : (
+            <div className="space-y-6">
+              {Object.entries(lastWeekPicks).map(([userName, picks]) => (
+                <div key={userName} className="bg-gray-50 rounded-lg p-4">
+                  <h4 className="font-medium mb-3">{userName}</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {picks.map((pick) => (
+                      <div 
+                        key={pick.id} 
+                        className={`p-2 rounded ${
+                          pick.winner 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-red-100 text-red-800'
+                        }`}
+                      >
+                        <div className="flex justify-between">
+                          <span>{pick.formatted_pick}</span>
+                          <span className="text-sm">
+                            {formatPSTDisplay(pick.game_date)}
+                          </span>
                         </div>
                       </div>
                     ))}

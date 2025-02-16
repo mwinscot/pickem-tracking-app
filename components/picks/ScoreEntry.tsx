@@ -41,44 +41,20 @@ const calculateWinner = (
   const total = teamScore + otherScore;
   const margin = teamScore - otherScore;
 
-  console.log('Calculating winner - Raw inputs:', {
-    team: pick.team,
-    teamScore,
-    otherScore,
-    margin,
-    spread: pick.spread,
-    is_favorite: pick.is_favorite,
-    is_over: pick.is_over,
-    over_under: pick.over_under
-  });
-
   if (pick.over_under > 0) { // Over/Under bet
+    if (total === pick.over_under) {
+      return false; // Push/loss on exact matches for over/under
+    }
     const isOver = total > pick.over_under;
-    console.log('Over/Under calculation:', { total, line: pick.over_under, isOver, picked_over: pick.is_over });
     return isOver === pick.is_over;
   } else { // Spread bet
     if (pick.is_favorite) {
       // Favorite needs to win by more than the spread
-      const covered = margin > Math.abs(pick.spread);  // Add Math.abs here
-      console.log('Favorite calculation:', { 
-        margin,
-        spread: pick.spread,
-        absSpread: Math.abs(pick.spread),
-        covered,
-        explanation: `${pick.team} ${covered ? 'covered' : 'did not cover'} because they ${covered ? 'won by more' : 'did not win by more'} than ${Math.abs(pick.spread)} points`
-      });
+      const covered = margin >= Math.abs(pick.spread);  // Changed > to >= for push scenarios
       return covered;
     } else {
       // Underdog needs to lose by less than the spread (or win outright)
-      const covered = margin + Math.abs(pick.spread) > 0;  // Add Math.abs here
-      console.log('Underdog calculation:', { 
-        margin,
-        spread: pick.spread,
-        absSpread: Math.abs(pick.spread),
-        adjustedMargin: margin + Math.abs(pick.spread),
-        covered,
-        explanation: `${pick.team} ${covered ? 'covered' : 'did not cover'} because they ${covered ? 'stayed within' : 'lost by more than'} ${Math.abs(pick.spread)} points`
-      });
+      const covered = margin + Math.abs(pick.spread) >= 0;  // Changed > to >= for push scenarios
       return covered;
     }
   }
