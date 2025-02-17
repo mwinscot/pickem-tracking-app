@@ -78,58 +78,53 @@ export default function PickEntry() {
   }, []);
 
   const fetchUsers = useCallback(async () => {
-    // Get all users first
-    console.log('Fetching users...');
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('id, name')
-      .order('name');
-    
+    // Get users with a count of their picks
+    const { data: usersWithPicks, error: userError } = await supabase
+      .from('picks')
+      .select(`
+        users (
+          id,
+          name
+        ),
+        count(*) as pick_count
+      `)
+      .groupBy('user_id, users.id, users.name');
+
     if (userError) {
       console.error('Error fetching users:', userError);
       return;
     }
 
-    // For each user, count their picks
-    const usersWithPickCounts = await Promise.all(userData.map(async (user) => {
-      // Get a count of all valid picks for this user
-      const { count, error: pickError } = await supabase
-        .from('picks')
-        .select('*', { count: 'exact' })
-        .eq('user_id', user.id)
-        .not('status', 'eq', 'deleted'); // Ensure we don't count deleted picks if any exist
-
-      if (pickError) {
-        console.error('Error counting picks for user:', pickError);
-        return { ...user, picks_remaining: 50 };
-      }
-
-      const picksUsed = count || 0;
-      const remaining = 50 - picksUsed;
-      
-      console.log(`User ${user.name}:`, {
-        totalPicks: picksUsed,
-        remaining: remaining,
-        userId: user.id
-      });
-      
-      return {
-        ...user,
-        picks_remaining: remaining
-      };
+    const formattedUsers = usersWithPicks.map(row => ({
+      id: row.users.id,
+      name: row.users.name,
+      picks_remaining: Math.max(0, 50 - parseInt(row.pick_count))
     }));
 
-    console.log('Users with calculated picks remaining:', 
-      usersWithPickCounts?.map(u => ({ 
-        name: u.name, 
-        remaining: u.picks_remaining 
-      }))
-    );
+    // Get any users who haven't made picks yet
+    const { data: allUsers } = await supabase
+      .from('users')
+      .select('id, name');
 
-    console.log('Final users with pick counts:', usersWithPickCounts);
-    setUsers(usersWithPickCounts || []);
+    // Add users who haven't made any picks yet
+    allUsers?.forEach(user => {
+      if (!formattedUsers.find(u => u.id === user.id)) {
+        formattedUsers.push({
+          id: user.id,
+          name: user.name,
+          picks_remaining: 50
+        });
+      }
+    });
+
+    console.log('Users with picks:', formattedUsers.map(u => ({
+      name: u.name,
+      remaining: u.picks_remaining,
+      used: 50 - u.picks_remaining
+    })));
+
+    setUsers(formattedUsers);
   }, [supabase]);
-  
 
   const fetchPendingPicks = useCallback(async () => {
     try {
@@ -303,13 +298,22 @@ export default function PickEntry() {
       return;
     }
 
-    console.log('Pre-submission picks status:', {
+    // Get current pick count before submission
+    const { count: currentCount } = await supabase
+      .from('picks')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', selectedUser);
+
+    const picksUsed = currentCount || 0;
+    const remaining = 50 - picksUsed;
+
+    console.log('Pre-submission check:', {
       user: selectedUserData.name,
-      currentPicksRemaining: selectedUserData.picks_remaining
+      totalPicks: picksUsed,
+      remaining: remaining
     });
 
-    // Add check for remaining picks
-    if (selectedUserData.picks_remaining <= 0) {
+    if (remaining <= 0) {
       setError('No picks remaining for this user');
       return;
     }
@@ -324,28 +328,21 @@ export default function PickEntry() {
       const pickData = createPickData(parsedPick);
       console.log('Submitting pick:', pickData);
 
-      // Insert the pick
       const { error: pickError } = await supabase
         .from('picks')
         .insert(pickData);
 
       if (pickError) throw pickError;
 
-      // Immediately verify the new pick count
-      const { count: newCount } = await supabase
-        .from('picks')
-        .select('*', { count: 'exact' })
-        .eq('user_id', selectedUser);
+      // Immediately update the users state with new picks remaining
+      setUsers(currentUsers => 
+        currentUsers.map(user => 
+          user.id === selectedUser
+            ? { ...user, picks_remaining: remaining - 1 }
+            : user
+        )
+      );
 
-      console.log('Post-submission pick count:', {
-        user: selectedUserData.name,
-        totalPicks: newCount,
-        remainingPicks: 50 - (newCount || 0)
-      });
-
-      // Force refresh users data to update picks remaining
-      await fetchUsers();
-      
       setMessage(`Pick recorded for ${selectedUserData.name}: ${
         parsedPick.pick_type === 'over_under' 
           ? `${parsedPick.team} ${parsedPick.is_over ? 'OVER' : 'UNDER'} ${parsedPick.over_under}` 
@@ -353,7 +350,13 @@ export default function PickEntry() {
       }`);
       
       setPickInput('');
-      await fetchPendingPicks();
+      
+      // Refresh all data
+      await Promise.all([
+        fetchUsers(),
+        fetchPendingPicks(),
+        fetchAllResults()
+      ]);
     } catch (err) {
       console.error('Error submitting pick:', err);
       setError(err instanceof Error ? err.message : 'Error saving pick');
