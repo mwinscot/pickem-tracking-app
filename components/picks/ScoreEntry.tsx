@@ -95,6 +95,7 @@ export default function ScoreEntry() {
   
     const gamesMap: Record<string, TeamGame> = {};
     const uniqueTeams = new Set<string>();
+    const newLocalScores: Record<string, { team: string, other: string }> = {};
     
     data.forEach(pick => {
       uniqueTeams.add(pick.team);
@@ -107,6 +108,10 @@ export default function ScoreEntry() {
           spread_picks: [],
           over_under_picks: [],
           game_date: pick.game_date
+        };
+        newLocalScores[pick.team] = {
+          team: '',
+          other: ''
         };
       }
   
@@ -137,6 +142,7 @@ export default function ScoreEntry() {
     
     setPendingGames(gamesMap);
     setUniqueTeams(Array.from(uniqueTeams));
+    setLocalScores(newLocalScores);
   }, [supabase]);
 
   useEffect(() => {
@@ -146,36 +152,16 @@ export default function ScoreEntry() {
   useEffect(() => {
     console.log('Pending games state updated:', pendingGames);
   }, [pendingGames]);
-
-  useEffect(() => {
-    const initialScores: Record<string, { team: string, other: string }> = {};
-    Object.keys(pendingGames).forEach(team => {
-      initialScores[team] = {
-        team: pendingGames[team].team_score || '',
-        other: pendingGames[team].other_score || ''
-      };
-    });
-    setLocalScores(initialScores);
-  }, [pendingGames]);
   
   const handleScoreChange = (team: string, scoreType: 'team' | 'other', value: string) => {
     console.log('Score change:', { team, scoreType, value });
 
-    // Update local scores
+    // Only update local scores state
     setLocalScores(prev => ({
       ...prev,
       [team]: {
         ...(prev[team] || { team: '', other: '' }),
         [scoreType]: value
-      }
-    }));
-
-    // Update pending games
-    setPendingGames(prev => ({
-      ...prev,
-      [team]: {
-        ...prev[team],
-        [`${scoreType}_score`]: value
       }
     }));
   };
@@ -338,9 +324,8 @@ export default function ScoreEntry() {
                     </label>
                     <input
                       type="text"
-                      value={(localScores[team]?.team || '')}
+                      value={localScores[team]?.team || ''}
                       onChange={(e) => handleScoreChange(team, 'team', e.target.value)}
-                      onFocus={(e) => console.log('Input focused:', { team, type: 'team', currentValue: e.target.value, localValue: localScores[team]?.team })}
                       className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
                     />
                   </div>
@@ -350,9 +335,8 @@ export default function ScoreEntry() {
                     </label>
                     <input
                       type="text"
-                      value={(localScores[team]?.other || '')}
+                      value={localScores[team]?.other || ''}
                       onChange={(e) => handleScoreChange(team, 'other', e.target.value)}
-                      onFocus={(e) => console.log('Input focused:', { team, type: 'other', currentValue: e.target.value, localValue: localScores[team]?.other })}
                       className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
                     />
                   </div>
