@@ -58,6 +58,7 @@ export default function PickEntry() {
     scoredByUser: Record<string, Pick[]>;
   }>({ pending: [], scoredByUser: {} });
   const [lastWeekPicks, setLastWeekPicks] = useState<{[key: string]: Pick[]}>({});
+  const [allResults, setAllResults] = useState<{[key: string]: { picks: Pick[], wins: number, losses: number }}>({});
 
   const groupPicksByStatus = useCallback((picks: Pick[]) => {
     console.log('All picks:', picks);
@@ -78,6 +79,7 @@ export default function PickEntry() {
 
   const fetchUsers = useCallback(async () => {
     // Get all users first
+    console.log('Fetching users...');
     const { data: userData, error: userError } = await supabase
       .from('users')
       .select('id, name')
@@ -90,10 +92,12 @@ export default function PickEntry() {
 
     // For each user, count their picks
     const usersWithPickCounts = await Promise.all(userData.map(async (user) => {
+      // Get a count of all valid picks for this user
       const { count, error: pickError } = await supabase
         .from('picks')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id);
+        .select('*', { count: 'exact' })
+        .eq('user_id', user.id)
+        .not('status', 'eq', 'deleted'); // Ensure we don't count deleted picks if any exist
 
       if (pickError) {
         console.error('Error counting picks for user:', pickError);
@@ -101,12 +105,28 @@ export default function PickEntry() {
       }
 
       const picksUsed = count || 0;
+      const remaining = 50 - picksUsed;
+      
+      console.log(`User ${user.name}:`, {
+        totalPicks: picksUsed,
+        remaining: remaining,
+        userId: user.id
+      });
+      
       return {
         ...user,
-        picks_remaining: 50 - picksUsed
+        picks_remaining: remaining
       };
     }));
 
+    console.log('Users with calculated picks remaining:', 
+      usersWithPickCounts?.map(u => ({ 
+        name: u.name, 
+        remaining: u.picks_remaining 
+      }))
+    );
+
+    console.log('Final users with pick counts:', usersWithPickCounts);
     setUsers(usersWithPickCounts || []);
   }, [supabase]);
   
@@ -181,11 +201,54 @@ export default function PickEntry() {
     setLastWeekPicks(groupedByUser);
   }, [supabase]);
 
+  const fetchAllResults = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('picks')
+      .select('*, users(name)')
+      .eq('status', 'completed')
+      .order('game_date', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching all results:', error);
+      return;
+    }
+
+    const resultsByUser = (data || []).reduce((acc: {[key: string]: { picks: Pick[], wins: number, losses: number }}, pick) => {
+      const userName = pick.users?.name || 'Unknown User';
+      if (!acc[userName]) {
+        acc[userName] = { picks: [], wins: 0, losses: 0 };
+      }
+      
+      acc[userName].picks.push({
+        ...pick,
+        formatted_pick: formatPick({
+          team: pick.team,
+          spread: pick.spread,
+          over_under: pick.over_under,
+          is_favorite: pick.is_favorite,
+          is_over: pick.is_over,
+          pick_type: pick.over_under > 0 ? 'over_under' : 'spread'
+        })
+      });
+
+      if (pick.winner) {
+        acc[userName].wins += 1;
+      } else {
+        acc[userName].losses += 1;
+      }
+
+      return acc;
+    }, {});
+
+    setAllResults(resultsByUser);
+  }, [supabase]);
+
   useEffect(() => {
     fetchUsers();
     fetchPendingPicks();
     fetchLastWeekPicks();
-  }, [fetchPendingPicks, fetchLastWeekPicks, fetchUsers]);
+    fetchAllResults();
+  }, [fetchPendingPicks, fetchLastWeekPicks, fetchUsers, fetchAllResults]);
 
   const createPickData = (parsedPick: ParsedPick): Pick => {
     const pstGameDate = toPSTDate(gameDate);
@@ -240,6 +303,11 @@ export default function PickEntry() {
       return;
     }
 
+    console.log('Pre-submission picks status:', {
+      user: selectedUserData.name,
+      currentPicksRemaining: selectedUserData.picks_remaining
+    });
+
     // Add check for remaining picks
     if (selectedUserData.picks_remaining <= 0) {
       setError('No picks remaining for this user');
@@ -263,9 +331,21 @@ export default function PickEntry() {
 
       if (pickError) throw pickError;
 
+      // Immediately verify the new pick count
+      const { count: newCount } = await supabase
+        .from('picks')
+        .select('*', { count: 'exact' })
+        .eq('user_id', selectedUser);
+
+      console.log('Post-submission pick count:', {
+        user: selectedUserData.name,
+        totalPicks: newCount,
+        remainingPicks: 50 - (newCount || 0)
+      });
+
       // Force refresh users data to update picks remaining
       await fetchUsers();
-
+      
       setMessage(`Pick recorded for ${selectedUserData.name}: ${
         parsedPick.pick_type === 'over_under' 
           ? `${parsedPick.team} ${parsedPick.is_over ? 'OVER' : 'UNDER'} ${parsedPick.over_under}` 
@@ -275,6 +355,7 @@ export default function PickEntry() {
       setPickInput('');
       await fetchPendingPicks();
     } catch (err) {
+      console.error('Error submitting pick:', err);
       setError(err instanceof Error ? err.message : 'Error saving pick');
     }
   };
@@ -422,6 +503,49 @@ export default function PickEntry() {
                   <h4 className="font-medium mb-2">{userName}</h4>
                   <div className="space-y-2">
                     {picks.map((pick) => (
+                      <div key={pick.id} className="flex justify-between items-center text-sm">
+                        <div className={pick.winner ? 'text-green-600' : 'text-red-600'}>
+                          {pick.formatted_pick}
+                          <span className="ml-2">
+                            ({pick.winner ? 'Win' : 'Loss'})
+                          </span>
+                        </div>
+                        <div className="text-gray-500">
+                          {formatPSTDisplay(pick.game_date)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* All Results Section */}
+        <div className="mt-8">
+          <h3 className="text-lg font-semibold mb-4">All Results</h3>
+          {Object.keys(allResults).length === 0 ? (
+            <div className="text-gray-500">No results available.</div>
+          ) : (
+            <div className="space-y-6">
+              {Object.entries(allResults)
+                .sort(([aName], [bName]) => aName.localeCompare(bName))
+                .map(([userName, data]) => (
+                <div key={userName} className="p-4 bg-gray-50 rounded-md">
+                  <div className="flex justify-between items-center mb-4">
+                    <h4 className="font-medium text-lg">{userName}</h4>
+                    <div className="text-sm">
+                      <span className="text-green-600 font-medium">{data.wins} Wins</span>
+                      <span className="mx-2">-</span>
+                      <span className="text-red-600 font-medium">{data.losses} Losses</span>
+                      <span className="ml-2 text-gray-600">
+                        ({((data.wins / (data.wins + data.losses)) * 100).toFixed(1)}%)
+                      </span>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    {data.picks.map((pick) => (
                       <div key={pick.id} className="flex justify-between items-center text-sm">
                         <div className={pick.winner ? 'text-green-600' : 'text-red-600'}>
                           {pick.formatted_pick}
