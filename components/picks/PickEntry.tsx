@@ -77,45 +77,50 @@ export default function PickEntry() {
     return { pending, scoredByUser };
   }, []);
 
+  interface UserWithPicks {
+    users: {
+      id: string;
+      name: string;
+    };
+    pick_count: number;
+  }
+
+  interface UserCount {
+    user_id: string;
+    name: string;
+    pick_count: number;
+  }
+
   const fetchUsers = useCallback(async () => {
-    // Get users with a count of their picks
-    const { data: usersWithPicks, error: userError } = await supabase
-      .from('picks')
-      .select(`
-        users (
-          id,
-          name
-        ),
-        count(*) as pick_count
-      `)
-      .groupBy('user_id, users.id, users.name');
+    // First get all users
+    const { data: allUsers, error: userError } = await supabase
+      .from('users')
+      .select('id, name');
 
     if (userError) {
       console.error('Error fetching users:', userError);
       return;
     }
 
-    const formattedUsers = usersWithPicks.map(row => ({
-      id: row.users.id,
-      name: row.users.name,
-      picks_remaining: Math.max(0, 50 - parseInt(row.pick_count))
+    // Then get pick counts for each user
+    const { data: pickCounts, error: countError } = await supabase
+      .rpc('get_pick_counts_per_user');
+
+    if (countError) {
+      console.error('Error fetching pick counts:', countError);
+      return;
+    }
+
+    const pickCountMap = (pickCounts || []).reduce((acc: Record<string, number>, count: UserCount) => {
+      acc[count.user_id] = count.pick_count;
+      return acc;
+    }, {});
+
+    const formattedUsers = (allUsers || []).map(user => ({
+      id: user.id,
+      name: user.name,
+      picks_remaining: Math.max(0, 50 - (pickCountMap[user.id] || 0))
     }));
-
-    // Get any users who haven't made picks yet
-    const { data: allUsers } = await supabase
-      .from('users')
-      .select('id, name');
-
-    // Add users who haven't made any picks yet
-    allUsers?.forEach(user => {
-      if (!formattedUsers.find(u => u.id === user.id)) {
-        formattedUsers.push({
-          id: user.id,
-          name: user.name,
-          picks_remaining: 50
-        });
-      }
-    });
 
     console.log('Users with picks:', formattedUsers.map(u => ({
       name: u.name,
