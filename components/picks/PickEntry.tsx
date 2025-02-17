@@ -77,17 +77,37 @@ export default function PickEntry() {
   }, []);
 
   const fetchUsers = useCallback(async () => {
-    const { data, error } = await supabase
+    // Get all users first
+    const { data: userData, error: userError } = await supabase
       .from('users')
-      .select('id, name, picks_remaining')
+      .select('id, name')
       .order('name');
     
-    if (error) {
-      console.error('Error fetching users:', error);
+    if (userError) {
+      console.error('Error fetching users:', userError);
       return;
     }
-  
-    setUsers(data || []);
+
+    // For each user, count their picks
+    const usersWithPickCounts = await Promise.all(userData.map(async (user) => {
+      const { count, error: pickError } = await supabase
+        .from('picks')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id);
+
+      if (pickError) {
+        console.error('Error counting picks for user:', pickError);
+        return { ...user, picks_remaining: 50 };
+      }
+
+      const picksUsed = count || 0;
+      return {
+        ...user,
+        picks_remaining: 50 - picksUsed
+      };
+    }));
+
+    setUsers(usersWithPickCounts || []);
   }, [supabase]);
   
 
@@ -208,13 +228,7 @@ export default function PickEntry() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Submit date check:', {
-      gameDate,
-      parsedDate: new Date(gameDate),
-      defaultDate,
-      now: new Date()
-    });
-
+    
     if (!selectedUser) {
       setError('Please select a user');
       return;
@@ -226,6 +240,12 @@ export default function PickEntry() {
       return;
     }
 
+    // Add check for remaining picks
+    if (selectedUserData.picks_remaining <= 0) {
+      setError('No picks remaining for this user');
+      return;
+    }
+
     const parsedPick = parsePick(pickInput);
     if (!parsedPick) {
       setError('Invalid pick format. Examples: "Arizona +4" or "Arizona O150"');
@@ -234,24 +254,17 @@ export default function PickEntry() {
 
     try {
       const pickData = createPickData(parsedPick);
-
       console.log('Submitting pick:', pickData);
 
-      const { data, error: pickError } = await supabase
+      // Insert the pick
+      const { error: pickError } = await supabase
         .from('picks')
-        .insert(pickData)
-        .select()
-        .single();
+        .insert(pickData);
 
       if (pickError) throw pickError;
 
-      // Update picks remaining
-      const { error: updateError } = await supabase
-        .from('users')
-        .update({ picks_remaining: selectedUserData.picks_remaining - 1 })
-        .eq('id', selectedUser);
-
-      if (updateError) throw updateError;
+      // Force refresh users data to update picks remaining
+      await fetchUsers();
 
       setMessage(`Pick recorded for ${selectedUserData.name}: ${
         parsedPick.pick_type === 'over_under' 
@@ -260,7 +273,6 @@ export default function PickEntry() {
       }`);
       
       setPickInput('');
-      await fetchUsers();
       await fetchPendingPicks();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error saving pick');
