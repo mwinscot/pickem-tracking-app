@@ -92,8 +92,7 @@ export default function PickEntry() {
   }
 
   const fetchUsers = useCallback(async () => {
-    // First get all users
-    const { data: allUsers, error: userError } = await supabase
+    const { data: usersData, error: userError } = await supabase
       .from('users')
       .select('id, name');
 
@@ -102,30 +101,32 @@ export default function PickEntry() {
       return;
     }
 
-    // Then get pick counts for each user
-    const { data: pickCounts, error: countError } = await supabase
-      .rpc('get_pick_counts_per_user');
+    // Get total picks count per user in a single query
+    const { data: picksByUser, error: picksError } = await supabase
+      .from('picks')
+      .select('user_id, id');
 
-    if (countError) {
-      console.error('Error fetching pick counts:', countError);
+    if (picksError) {
+      console.error('Error fetching picks:', picksError);
       return;
     }
 
-    const pickCountMap = (pickCounts || []).reduce((acc: Record<string, number>, count: UserCount) => {
-      acc[count.user_id] = count.pick_count;
+    // Calculate picks remaining for each user
+    const pickCounts = picksByUser.reduce((acc: Record<string, number>, pick) => {
+      acc[pick.user_id] = (acc[pick.user_id] || 0) + 1;
       return acc;
     }, {});
 
-    const formattedUsers = (allUsers || []).map(user => ({
+    const formattedUsers = usersData.map(user => ({
       id: user.id,
       name: user.name,
-      picks_remaining: Math.max(0, 50 - (pickCountMap[user.id] || 0))
+      picks_remaining: 50 - (pickCounts[user.id] || 0)
     }));
 
-    console.log('Users with picks:', formattedUsers.map(u => ({
+    console.log('Users with calculated picks:', formattedUsers.map(u => ({
       name: u.name,
-      remaining: u.picks_remaining,
-      used: 50 - u.picks_remaining
+      total_picks: 50 - u.picks_remaining,
+      remaining: u.picks_remaining
     })));
 
     setUsers(formattedUsers);
