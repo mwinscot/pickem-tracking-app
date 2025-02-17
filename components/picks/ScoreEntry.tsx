@@ -68,34 +68,28 @@ export default function ScoreEntry() {
   const [pendingGames, setPendingGames] = useState<Record<string, TeamGame>>({});
   const [uniqueTeams, setUniqueTeams] = useState<string[]>([]);
   const [message, setMessage] = useState('');
-  const [localScores, setLocalScores] = useState<Record<string, { team: string, other: string }>>({});
+  const [scores, setScores] = useState<Record<string, { team: string, other: string }>>({});
 
   const fetchPendingPicks = useCallback(async () => {
-    // Log current state
-    console.log('Fetching pending picks...');
-    
     const { data, error } = await supabase
       .from('picks')
       .select(`*, users(name)`)
-      .neq('status', 'completed')  // Changed from eq('status', 'pending')
+      .neq('status', 'completed')
       .order('game_date', { ascending: true });
-    
-    console.log('Fetch response:', { data, error });
     
     if (error) {
       console.error('Error fetching picks:', error);
       return;
     }
-  
+
     if (!data || data.length === 0) {
       setPendingGames({});
       setUniqueTeams([]);
       return;
     }
-  
+
     const gamesMap: Record<string, TeamGame> = {};
     const uniqueTeams = new Set<string>();
-    const newLocalScores: Record<string, { team: string, other: string }> = {};
     
     data.forEach(pick => {
       uniqueTeams.add(pick.team);
@@ -109,12 +103,8 @@ export default function ScoreEntry() {
           over_under_picks: [],
           game_date: pick.game_date
         };
-        newLocalScores[pick.team] = {
-          team: '',
-          other: ''
-        };
       }
-  
+
       const game = gamesMap[pick.team];
       const betType = pick.over_under > 0 ? 'over_under' : 'spread';
       const formattedPick = {
@@ -129,58 +119,44 @@ export default function ScoreEntry() {
           pick_type: betType
         })
       };
-  
+
       if (betType === 'spread') {
         game.spread_picks.push(formattedPick);
       } else {
         game.over_under_picks.push(formattedPick);
       }
     });
-    console.log('Supabase response:', data);
-    console.log('Processed games:', gamesMap);
-    console.log('Unique teams:', uniqueTeams);
     
     setPendingGames(gamesMap);
     setUniqueTeams(Array.from(uniqueTeams));
-    setLocalScores(newLocalScores);
   }, [supabase]);
 
   useEffect(() => {
     fetchPendingPicks();
   }, [fetchPendingPicks]);
 
-  useEffect(() => {
-    console.log('Pending games state updated:', pendingGames);
-  }, [pendingGames]);
-  
   const handleScoreChange = (team: string, scoreType: 'team' | 'other', value: string) => {
-    console.log('Score change:', { team, scoreType, value });
-
-    // Only update local scores state
-    setLocalScores(prev => ({
+    setScores(prev => ({
       ...prev,
       [team]: {
-        ...(prev[team] || { team: '', other: '' }),
+        ...prev[team],
         [scoreType]: value
       }
     }));
   };
 
-  // Add an effect to log state changes
   useEffect(() => {
-    console.log('=== State Update ===');
-    console.log('PendingGames updated:', pendingGames);
+    console.log('Pending games state updated:', pendingGames);
   }, [pendingGames]);
   
   const handleSubmitScore = async (team: string) => {
     const game = pendingGames[team];
-    const scores = localScores[team];
+    const teamScores = scores[team];
     
-    if (!game || !scores) return;
+    if (!game || !teamScores) return;
   
-    // Convert to numbers only when submitting
-    const teamScore = parseInt(scores.team, 10);
-    const otherScore = parseInt(scores.other, 10);
+    const teamScore = parseInt(teamScores.team, 10);
+    const otherScore = parseInt(teamScores.other, 10);
   
     if (isNaN(teamScore) || isNaN(otherScore)) {
       setMessage('Please enter valid scores');
@@ -269,8 +245,8 @@ export default function ScoreEntry() {
 
       setMessage(`Scores updated successfully for ${team}!`);
       
-      // Clear local states
-      setLocalScores(prev => {
+      // Clear scores after successful submission
+      setScores(prev => {
         const newScores = { ...prev };
         delete newScores[team];
         return newScores;
@@ -324,7 +300,7 @@ export default function ScoreEntry() {
                     </label>
                     <input
                       type="text"
-                      value={localScores[team]?.team || ''}
+                      value={scores[team]?.team || ''}
                       onChange={(e) => handleScoreChange(team, 'team', e.target.value)}
                       className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
                     />
@@ -335,7 +311,7 @@ export default function ScoreEntry() {
                     </label>
                     <input
                       type="text"
-                      value={localScores[team]?.other || ''}
+                      value={scores[team]?.other || ''}
                       onChange={(e) => handleScoreChange(team, 'other', e.target.value)}
                       className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
                     />
@@ -369,7 +345,7 @@ export default function ScoreEntry() {
 
                 <button
                   onClick={() => handleSubmitScore(team)}
-                  disabled={!localScores[team]?.team || !localScores[team]?.other}
+                  disabled={!scores[team]?.team || !scores[team]?.other}
                   className="w-full bg-green-500 text-white p-2 rounded hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
                 >
                   Update Score
